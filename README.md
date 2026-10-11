@@ -6,7 +6,9 @@ RC Photo Studio is a lightweight Windows desktop application for reusable Rush I
 
 - Large thumbnail-button front menu
 - Persistent custom package library
-- Built-in factory catalog with the studio's 13 existing Rush ID and photo packages
+- Automatic Rush ID package builder for 2 × 2 inch, 1.5 × 1.5 inch, 1 × 1 inch, and 1.377 × 1.77 inch passport pictures
+- Eight-inch, gap-free Rush ID printable width: mixed 1 × 1 pictures fill available space beside the 2 × 2 row first, then continue across full rows below; automatic page overflow
+- Built-in factory catalog for regular photo packages
 - Create, edit, duplicate, search, filter, and delete packages
 - Mixed photo sizes and quantities in one package
 - 4R, 5R, A4, Letter, and Legal paper presets
@@ -36,7 +38,7 @@ The executable is written to `RCPhotoStudio\bin\Release\RCPhotoStudio.exe`.
 
 Package definitions and theme preference are stored in `%LOCALAPPDATA%\RC Photo Studio`.
 On a new installation, the app seeds that folder with its built-in package catalog.
-An existing valid saved package library is loaded as-is and is not replaced by the factory catalog.
+Existing Rush ID templates are migrated to the automatic Rush ID package; other saved packages are preserved.
 
 ## Printing note
 

@@ -1,0 +1,434 @@
+<Window x:Class="RCPhotoStudio.Views.CategoryPackagesWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:RCPhotoStudio.Controls"
+        Title="Packages — RC Photo Studio" Height="820" Width="1320" MinHeight="620" MinWidth="900"
+        WindowStartupLocation="CenterOwner" Icon="/RCPhotoStudio;component/Assets/rc-logo.png"
+        AllowDrop="True" DragOver="Window_DragOver" Drop="Window_Drop"
+        PreviewMouseLeftButtonDown="Window_PreviewMouseLeftButtonDown">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="68"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+            <Grid Margin="22,0">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Image Source="/RCPhotoStudio;component/Assets/rc-logo.png" Width="44" Height="44" Margin="0,0,10,0"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock x:Name="CategoryTitle" FontSize="21" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="CategorySubtitle"
+                                   Foreground="{DynamicResource MutedTextBrush}" FontSize="11"/>
+                    </StackPanel>
+                </StackPanel>
+                <Button Grid.Column="1" Content="Close" Width="90" VerticalAlignment="Center" Click="Close_Click"/>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="PackageColumn" Width="150"/>
+                <ColumnDefinition Width="2*" MinWidth="300"/>
+                <ColumnDefinition Width="3*" MinWidth="420"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
+                <Grid Margin="10,14">
+                    <Grid x:Name="SavedPackagePanel">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Text="Packages" FontSize="17" FontWeight="SemiBold"
+                                   HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                        <ListBox x:Name="PackageList" Grid.Row="1" BorderThickness="0" Background="Transparent"
+                                 HorizontalContentAlignment="Center"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                 SelectionChanged="PackageList_SelectionChanged">
+                            <ListBox.ItemsPanel>
+                                <ItemsPanelTemplate><StackPanel Orientation="Vertical"/></ItemsPanelTemplate>
+                            </ListBox.ItemsPanel>
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem">
+                                    <Setter Property="Padding" Value="0"/>
+                                    <Setter Property="Margin" Value="0"/>
+                                    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                </Style>
+                            </ListBox.ItemContainerStyle>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Width="108" Height="126" Margin="0,0,0,8" Padding="5"
+                                            Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}"
+                                            BorderThickness="1" CornerRadius="8">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="91"/>
+                                                <RowDefinition Height="*"/>
+                                            </Grid.RowDefinitions>
+                                            <Border Background="#2B323D" BorderBrush="{DynamicResource BorderBrush}"
+                                                    BorderThickness="1" CornerRadius="5" ClipToBounds="True">
+                                                <controls:PackageAssignmentPreviewControl Package="{Binding}"
+                                                                                          CompactMode="True"
+                                                                                          IsHitTestVisible="False"/>
+                                            </Border>
+                                            <TextBlock Grid.Row="1" Text="{Binding Name}" FontWeight="SemiBold" FontSize="12"
+                                                       VerticalAlignment="Center" TextAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        <Grid Grid.Row="2" Margin="0,8,0,0">
+                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                            <Button x:Name="EditPackageButton" Grid.ColumnSpan="2" Content="Edit Package" Height="29"
+                                    Margin="0,0,0,6" Padding="7,2" Click="EditPackage_Click"
+                                    ToolTip="Edit the selected package"/>
+                            <Button x:Name="UndoRemoveButton" Grid.Row="1" Content="Undo" Height="29"
+                                    Margin="0,0,3,0" Padding="5,2" Click="UndoRemove_Click"
+                                    ToolTip="Restore the most recently removed package"/>
+                            <Button x:Name="RemovePackageButton" Grid.Row="1" Grid.Column="1" Content="Remove" Height="29"
+                                    Margin="3,0,0,0" Padding="5,2" Click="RemovePackage_Click"
+                                    ToolTip="Delete the selected package"/>
+                        </Grid>
+                    </Grid>
+
+                    <ScrollViewer x:Name="AutomaticRushIdPanel" Visibility="Collapsed"
+                                  VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Margin="4,0">
+                            <TextBlock Text="Automatic package" FontSize="17" FontWeight="SemiBold"/>
+                            <TextBlock Text="Select each ID size and enter how many pictures you need."
+                                       TextWrapping="Wrap" Margin="0,3,0,14"
+                                       Foreground="{DynamicResource MutedTextBrush}" FontSize="11"/>
+
+                            <TextBlock Text="Paper" FontSize="11" Margin="0,0,0,4"/>
+                            <ComboBox x:Name="AutomaticRushPaperBox" Height="30" Margin="0,0,0,10"
+                                      SelectionChanged="AutomaticRushPaper_Changed"/>
+                            <TextBlock Text="Orientation" FontSize="11" Margin="0,0,0,4"/>
+                            <ComboBox x:Name="AutomaticRushOrientationBox" Height="30" Margin="0,0,0,14"
+                                      SelectionChanged="AutomaticRushOrientation_Changed"/>
+
+                            <Border Padding="9" Margin="0,0,0,8" Background="{DynamicResource SurfaceAltBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="58"/></Grid.ColumnDefinitions>
+                                    <CheckBox x:Name="TwoByTwoCheckBox" Content="2 × 2 inches" VerticalAlignment="Center"
+                                              Checked="AutomaticRushSize_Changed" Unchecked="AutomaticRushSize_Changed"/>
+                                    <TextBox x:Name="TwoByTwoQuantityBox" Grid.Column="1" Text="1" Height="27"
+                                             TextAlignment="Center" VerticalContentAlignment="Center"
+                                             TextChanged="AutomaticRushQuantity_Changed" ToolTip="Quantity"/>
+                                </Grid>
+                            </Border>
+
+                            <Border Padding="9" Margin="0,0,0,8" Background="{DynamicResource SurfaceAltBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="58"/></Grid.ColumnDefinitions>
+                                    <CheckBox x:Name="OneByOneCheckBox" Content="1 × 1 inch" VerticalAlignment="Center"
+                                              Checked="AutomaticRushSize_Changed" Unchecked="AutomaticRushSize_Changed"/>
+                                    <TextBox x:Name="OneByOneQuantityBox" Grid.Column="1" Text="1" Height="27"
+                                             TextAlignment="Center" VerticalContentAlignment="Center"
+                                             TextChanged="AutomaticRushQuantity_Changed" ToolTip="Quantity"/>
+                                </Grid>
+                            </Border>
+
+                            <Border Padding="9" Margin="0,0,0,8" Background="{DynamicResource SurfaceAltBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="58"/></Grid.ColumnDefinitions>
+                                    <CheckBox x:Name="OnePointFiveCheckBox" Content="1.5 × 1.5 inches" VerticalAlignment="Center"
+                                              Checked="AutomaticRushSize_Changed" Unchecked="AutomaticRushSize_Changed"/>
+                                    <TextBox x:Name="OnePointFiveQuantityBox" Grid.Column="1" Text="1" Height="27"
+                                             TextAlignment="Center" VerticalContentAlignment="Center"
+                                             TextChanged="AutomaticRushQuantity_Changed" ToolTip="Quantity"/>
+                                </Grid>
+                            </Border>
+
+                            <Border Padding="9" Margin="0,0,0,8" Background="{DynamicResource SurfaceAltBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="58"/></Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <CheckBox x:Name="PassportCheckBox" Content="Passport size"
+                                                  Checked="AutomaticRushSize_Changed" Unchecked="AutomaticRushSize_Changed"/>
+                                        <TextBlock Text="1.377 × 1.77 inches" FontSize="9" Margin="20,2,0,0"
+                                                   Foreground="{DynamicResource MutedTextBrush}"/>
+                                    </StackPanel>
+                                    <TextBox x:Name="PassportQuantityBox" Grid.Column="1" Text="1" Height="27"
+                                             TextAlignment="Center" VerticalContentAlignment="Center"
+                                             TextChanged="AutomaticRushQuantity_Changed" ToolTip="Quantity"/>
+                                </Grid>
+                            </Border>
+
+                            <Button Content="Reset Sizes" Height="32" Margin="0,2,0,8"
+                                    Click="ResetAutomaticRushSizes_Click"
+                                    ToolTip="Uncheck every size and reset all quantities to 1"/>
+
+                            <TextBlock Text="The printable width is 8 inches. Mixed 1 × 1 pictures fill space beside 2 × 2 pictures first, then remaining 1 × 1 pictures continue across full rows below."
+                                       TextWrapping="Wrap" Margin="1,6,1,0"
+                                       Foreground="{DynamicResource MutedTextBrush}" FontSize="10"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+
+            <Border Grid.Column="1" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
+                <Grid Margin="14">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="Imported images" FontSize="17" FontWeight="SemiBold"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Grid.Row="1" Text="Drag a thumbnail onto a picture box"
+                               Foreground="{DynamicResource MutedTextBrush}" FontSize="11" Margin="0,2,0,6"/>
+                    <Grid Grid.Row="2" Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <TextBlock Text="−" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <Slider x:Name="ThumbnailZoomSlider" Grid.Column="1" Minimum="38" Maximum="96" Value="96"
+                                TickFrequency="2" ValueChanged="ThumbnailZoom_Changed"/>
+                        <TextBlock Grid.Column="2" Text="+" FontSize="14" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                    </Grid>
+                    <ListBox x:Name="PhotoList" Grid.Row="3" BorderThickness="0" Background="Transparent"
+                             SelectionMode="Multiple"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             ScrollViewer.CanContentScroll="False"
+                             SelectionChanged="PhotoList_SelectionChanged"
+                             PreviewKeyDown="PhotoList_PreviewKeyDown"
+                             PreviewMouseLeftButtonDown="PhotoList_PreviewMouseLeftButtonDown"
+                             PreviewMouseMove="PhotoList_PreviewMouseMove">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <controls:CenteredWrapPanel/>
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="Margin" Value="0"/>
+                                <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Width="{Binding DataContext.ThumbnailTileWidth, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                        Height="{Binding DataContext.ThumbnailTileHeight, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                        Margin="2" Padding="3" Background="{DynamicResource SurfaceAltBrush}"
+                                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <Border Width="{Binding DataContext.ThumbnailImageSize, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                                Height="{Binding DataContext.ThumbnailImageSize, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                                Background="#333" CornerRadius="4" ClipToBounds="True">
+                                            <Image Source="{Binding PreviewSource}" Stretch="Uniform"/>
+                                        </Border>
+                                        <TextBlock Text="{Binding Name}"
+                                                   Width="{Binding DataContext.ThumbnailImageSize, RelativeSource={RelativeSource AncestorType={x:Type Window}}}"
+                                                   Margin="0,3,0,0"
+                                                   FontSize="8" LineHeight="9" MaxHeight="27"
+                                                   TextAlignment="Center" TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
+                                                   ToolTip="{Binding Path}"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    <Grid Grid.Row="4" Margin="0,10,0,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                        <Border x:Name="RushIdPackageCountPanel" Grid.ColumnSpan="2" Margin="0,0,0,7" Padding="8,5"
+                                Background="{DynamicResource SurfaceAltBrush}" BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1" CornerRadius="6" Visibility="Collapsed">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Packages for selected" FontSize="11"/>
+                                    <TextBlock Text="Updates the preview immediately" FontSize="9"
+                                               Foreground="{DynamicResource MutedTextBrush}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                    <Button x:Name="RushIdPackageMinusButton" Content="−" Width="28" Height="27" Padding="0"
+                                            Click="PackageCountMinus_Click"/>
+                                    <TextBox x:Name="RushIdPackageCountBox" Text="1" Width="44" Height="27" Margin="5,0"
+                                             TextAlignment="Center" VerticalContentAlignment="Center"
+                                             TextChanged="RushIdPackageCount_TextChanged"
+                                             ToolTip="Complete Rush ID packages for every currently selected image"/>
+                                    <Button x:Name="RushIdPackagePlusButton" Content="+" Width="28" Height="27" Padding="0"
+                                            Click="PackageCountPlus_Click"/>
+                                </StackPanel>
+                                <StackPanel Grid.Row="1" Margin="0,7,0,1" VerticalAlignment="Center">
+                                    <TextBlock Text="Picture border" FontSize="11"/>
+                                    <TextBlock Text="Applies to preview and print" FontSize="9"
+                                               Foreground="{DynamicResource MutedTextBrush}"/>
+                                </StackPanel>
+                                <ComboBox x:Name="RushIdPictureBorderBox" Grid.Row="1" Grid.Column="1" Width="105" Height="29"
+                                          Margin="0,7,0,1" SelectionChanged="RushIdPictureBorder_Changed"
+                                          ToolTip="Choose whether a border is printed around every Rush ID picture"/>
+                                <StackPanel Grid.Row="2" Margin="0,7,0,1" VerticalAlignment="Center">
+                                    <TextBlock Text="Picture fit" FontSize="11"/>
+                                    <TextBlock Text="Applies to every Rush ID picture" FontSize="9"
+                                               Foreground="{DynamicResource MutedTextBrush}"/>
+                                </StackPanel>
+                                <ComboBox x:Name="RushIdPhotoFitBox" Grid.Row="2" Grid.Column="1" Width="105" Height="29"
+                                          Margin="0,7,0,1" SelectionChanged="RushIdPhotoFit_SelectionChanged"
+                                          ToolTip="Choose Crop or Stretch for the Rush ID package"/>
+                            </Grid>
+                        </Border>
+                        <Border x:Name="PhotoFitPanel" Grid.ColumnSpan="2" Margin="0,0,0,7" Padding="8,5"
+                                Background="{DynamicResource SurfaceAltBrush}" BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1" CornerRadius="6" Visibility="Collapsed">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Row="0" VerticalAlignment="Center">
+                                    <TextBlock Text="Picture fit" FontSize="11"/>
+                                    <TextBlock Text="Applies to selected preview picture(s)" FontSize="9"
+                                               Foreground="{DynamicResource MutedTextBrush}"/>
+                                </StackPanel>
+                                <ComboBox x:Name="PhotoFitBox" Grid.Row="0" Grid.Column="1" Width="105" Height="29"
+                                          IsEnabled="False" SelectionChanged="PhotoFit_SelectionChanged"
+                                          ToolTip="Choose Crop or Stretch for the selected preview picture"/>
+                                <StackPanel Grid.Row="1" Margin="0,7,0,1" VerticalAlignment="Center">
+                                    <TextBlock Text="Picture border" FontSize="11"/>
+                                    <TextBlock Text="For selected preview picture(s)" FontSize="9"
+                                               Foreground="{DynamicResource MutedTextBrush}"/>
+                                </StackPanel>
+                                <ComboBox x:Name="PictureBorderBox" Grid.Row="1" Grid.Column="1" Width="105" Height="29"
+                                          Margin="0,7,0,1" IsEnabled="False" SelectionChanged="PictureBorder_Changed"
+                                          ToolTip="Choose whether the selected preview picture prints with a border"/>
+                            </Grid>
+                        </Border>
+                        <Border x:Name="PhotoCopyPanel" Grid.Row="1" Grid.ColumnSpan="2" Margin="0,0,0,7" Padding="8,5"
+                                Background="{DynamicResource SurfaceAltBrush}" BorderBrush="{DynamicResource BorderBrush}"
+                                BorderThickness="1" CornerRadius="6" Visibility="Collapsed">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Copies of selected" FontSize="11"/>
+                                    <TextBlock Text="Saved separately for each picture" FontSize="9"
+                                               Foreground="{DynamicResource MutedTextBrush}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                    <Button x:Name="PhotoCopyMinusButton" Content="−" Width="28" Height="27" Padding="0"
+                                            Click="PhotoCopyMinus_Click"/>
+                                    <TextBox x:Name="PhotoCopyCountBox" Text="1" Width="44" Height="27" Margin="5,0"
+                                             TextAlignment="Center" VerticalContentAlignment="Center"
+                                             TextChanged="PhotoCopyCount_TextChanged"
+                                             ToolTip="Copies for every currently selected picture"/>
+                                    <Button x:Name="PhotoCopyPlusButton" Content="+" Width="28" Height="27" Padding="0"
+                                            Click="PhotoCopyPlus_Click"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                        <Button x:Name="FillAllBoxesButton" Grid.Row="2" Grid.ColumnSpan="2" Content="Select Pictures to Fill"
+                                Height="40" Margin="0,0,0,9" Padding="14,7" FontSize="13" FontWeight="SemiBold"
+                                Style="{StaticResource PrimaryButtonStyle}" Click="FillAllBoxes_Click"
+                                ToolTip="Click pictures to select them, then fill the package"/>
+                        <Button Grid.Row="3" Content="＋ Import" Click="ImportImages_Click" Margin="0,0,5,0"/>
+                        <Button x:Name="RemoveImageButton" Grid.Row="3" Grid.Column="1" Content="Remove"
+                                Click="RemoveImage_Click" Margin="5,0,0,0"/>
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Column="2" Margin="16,12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="58"/>
+                </Grid.RowDefinitions>
+
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <Border Background="#2B323D" BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="6">
+                        <Grid>
+                            <controls:PackageAssignmentPreviewControl x:Name="AssignmentPreview"
+                                                                      PhotoAssigned="AssignmentPreview_PhotoAssigned"
+                                                                      SelectedPhotoChanged="Preview_SelectedPhotoChanged"/>
+                            <controls:PaperPreviewControl x:Name="MultiPhotoPreview" Visibility="Collapsed"
+                                                          SelectedPhotoChanged="Preview_SelectedPhotoChanged"/>
+                            <TextBlock x:Name="MultiPageStatus" Foreground="White" Background="#A0222933"
+                                       HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="12" Padding="9,5"
+                                       Visibility="Collapsed"/>
+                            <TextBlock x:Name="NoPackagesText" Text="No saved packages are available in this category."
+                                       Foreground="White" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Visibility="Collapsed"/>
+                        </Grid>
+                    </Border>
+
+                    <Border x:Name="PackagePageSidebar" Grid.Column="1" Width="160" Margin="10,0,0,0"
+                            Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1" CornerRadius="8" Visibility="Collapsed">
+                        <Grid Margin="10">
+                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                            <TextBlock Text="Pages" FontSize="16" FontWeight="SemiBold" Margin="4,2,4,9"/>
+                            <ListBox x:Name="PackagePagePreviewList" Grid.Row="1" BorderThickness="0" Background="Transparent"
+                                     HorizontalContentAlignment="Stretch" SelectionChanged="PackagePagePreviewList_SelectionChanged"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="2,2,2,8">
+                                        <controls:PaperPreviewControl Layout="{Binding Layout}" PageIndex="{Binding PageIndex}"
+                                                                          ShowGrid="{Binding ShowGrid}" ShowCutGuides="{Binding ShowCutGuides}"
+                                                                          ShowPictureBorders="{Binding ShowPictureBorders}"
+                                                                          Height="138" IsHitTestVisible="False"/>
+                                            <TextBlock Text="{Binding Label}" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <Grid Grid.Row="1" Margin="0,10,0,0">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock x:Name="SelectedPackageTitle" FontWeight="SemiBold" FontSize="14"/>
+                        <TextBlock x:Name="AssignmentStatus" Foreground="{DynamicResource MutedTextBrush}" FontSize="11"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Button x:Name="OpenWorkspaceButton" Content="OPEN PRINT WORKSPACE"
+                                Style="{StaticResource PrimaryButtonStyle}" Padding="20,9" Click="OpenWorkspace_Click"/>
+                        <Button x:Name="SavePdfButton" Content="Save PDF" Padding="20,9"
+                                Margin="0,0,10,0" Click="SavePdf_Click" Visibility="Collapsed"
+                                ToolTip="Save the current package preview as a PDF"/>
+                        <Button x:Name="PrinterSettingsButton" Content="Printer Settings" Padding="20,9"
+                                Margin="0,0,10,0" Click="PrinterSettings_Click" Visibility="Collapsed"/>
+                        <Button x:Name="PrintButton" Content="Print" Style="{StaticResource PrimaryButtonStyle}"
+                                Padding="28,9" Click="Print_Click" Visibility="Collapsed"/>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>
