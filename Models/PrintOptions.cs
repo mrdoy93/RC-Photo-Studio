@@ -15,8 +15,8 @@ public enum PrintQualityMode
 }
 
 public sealed record PrintOptions(
-    string PaperSize,
+    PrinterPaperSize PaperSize,
     PrintColorMode ColorMode,
     PrintQualityMode Quality,
-    string ReductionPreset,
+    bool FitToSelectedPrintSize,
     int Copies);

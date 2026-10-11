@@ -2,6 +2,7 @@ using System.Drawing.Printing;
 using System.Printing;
 using System.Printing.Interop;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Documents;
 using System.Windows.Markup;
@@ -12,8 +13,6 @@ namespace PrinterScanner.Services;
 
 public sealed class PrinterService
 {
-    private const string UnsupportedLargePaperMessage =
-        "A3 or Legal is not available on this Printer Model";
     private const int DmOutBuffer = 0x00000002;
     private const int DmInBuffer = 0x00000008;
     private const int DmInPrompt = 0x00000004;
@@ -41,11 +40,49 @@ public sealed class PrinterService
             .ToList();
     }
 
-    public bool SupportsPaperSize(PrinterDevice printer, string paperSize)
+    public IReadOnlyList<PrinterPaperSize> GetPaperSizes(PrinterDevice printer)
     {
-        if (paperSize is not ("A3" or "Legal"))
+        var sizes = new List<PrinterPaperSize>();
+        PrinterPaperSize? defaultSize = null;
+
+        try
         {
-            return true;
+            var settings = new PrinterSettings { PrinterName = printer.Name };
+            if (settings.IsValid)
+            {
+                foreach (System.Drawing.Printing.PaperSize driverSize in settings.PaperSizes)
+                {
+                    if (driverSize.Width <= 0 || driverSize.Height <= 0)
+                    {
+                        continue;
+                    }
+
+                    var name = string.IsNullOrWhiteSpace(driverSize.PaperName)
+                        ? driverSize.Kind.ToString()
+                        : driverSize.PaperName.Trim();
+                    var detected = PrinterPaperSize.FromHundredthsOfAnInch(
+                        name,
+                        driverSize.Width,
+                        driverSize.Height,
+                        driverSize.RawKind);
+                    AddUniqueSize(sizes, detected);
+                }
+
+                var driverDefault = settings.DefaultPageSettings.PaperSize;
+                if (driverDefault.Width > 0 && driverDefault.Height > 0)
+                {
+                    defaultSize = PrinterPaperSize.FromHundredthsOfAnInch(
+                        driverDefault.PaperName,
+                        driverDefault.Width,
+                        driverDefault.Height,
+                        driverDefault.RawKind);
+                }
+            }
+        }
+        catch (Exception exception) when (
+            exception is InvalidPrinterException or System.ComponentModel.Win32Exception)
+        {
+            // Some XPS-only and legacy drivers expose sizes only through PrintCapabilities.
         }
 
         try
@@ -54,52 +91,119 @@ public sealed class PrinterService
             using var printQueue = printServer.GetPrintQueue(printer.Name);
             printQueue.Refresh();
             var capabilities = printQueue.GetPrintCapabilities();
-            var expectedName = paperSize == "A3"
-                ? PageMediaSizeName.ISOA3
-                : PageMediaSizeName.NorthAmericaLegal;
-            var expectedWidth = paperSize == "A3" ? 1122.52 : 816d;
-            var expectedHeight = paperSize == "A3" ? 1587.4 : 1344d;
+            if (capabilities.PageMediaSizeCapability is { } mediaSizes)
+            {
+                foreach (var mediaSize in mediaSizes)
+                {
+                    if (mediaSize.Width is not > 0 || mediaSize.Height is not > 0)
+                    {
+                        continue;
+                    }
 
-            return capabilities.PageMediaSizeCapability?.Any(size =>
-                size.PageMediaSizeName == expectedName ||
-                DimensionsMatch(size.Width, size.Height, expectedWidth, expectedHeight)) == true;
+                    var mediaSizeName = mediaSize.PageMediaSizeName is PageMediaSizeName.Unknown
+                        ? null
+                        : mediaSize.PageMediaSizeName;
+                    var matchingIndex = sizes.FindIndex(size =>
+                        size.HasSameDimensions(mediaSize.Width, mediaSize.Height));
+                    if (matchingIndex >= 0)
+                    {
+                        if (sizes[matchingIndex].MediaSizeName is null && mediaSizeName is not null)
+                        {
+                            sizes[matchingIndex] = sizes[matchingIndex] with
+                            {
+                                MediaSizeName = mediaSizeName
+                            };
+                        }
+                        continue;
+                    }
+
+                    AddUniqueSize(sizes, new PrinterPaperSize(
+                        GetMediaDisplayName(mediaSizeName),
+                        mediaSizeName,
+                        mediaSize.Width.Value,
+                        mediaSize.Height.Value));
+                }
+            }
+
+            var ticketSize = (printQueue.UserPrintTicket ?? printQueue.DefaultPrintTicket)?.PageMediaSize;
+            if (ticketSize?.Width is > 0 && ticketSize.Height is > 0)
+            {
+                var ticketSizeName = ticketSize.PageMediaSizeName is PageMediaSizeName.Unknown
+                    ? null
+                    : ticketSize.PageMediaSizeName;
+                defaultSize = new PrinterPaperSize(
+                    GetMediaDisplayName(ticketSizeName),
+                    ticketSizeName,
+                    ticketSize.Width.Value,
+                    ticketSize.Height.Value);
+            }
         }
-        catch (PrintSystemException)
+        catch (Exception exception) when (
+            exception is PrintSystemException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
         {
-            // If a legacy driver cannot report capabilities, allow it to validate the job itself.
-            return true;
+            // Keep sizes already reported by the Win32 printer driver.
+        }
+
+        if (sizes.Count == 0)
+        {
+            sizes.Add(new PrinterPaperSize("A4", PageMediaSizeName.ISOA4, 793.7, 1122.52));
+            sizes.Add(new PrinterPaperSize("Letter", PageMediaSizeName.NorthAmericaLetter, 816, 1056));
+        }
+
+        if (defaultSize is not null)
+        {
+            var defaultIndex = sizes.FindIndex(size =>
+                defaultSize.MediaSizeName is not null && size.MediaSizeName == defaultSize.MediaSizeName ||
+                size.HasSameDimensions(defaultSize.Width, defaultSize.Height));
+            if (defaultIndex > 0)
+            {
+                var selectedDefault = sizes[defaultIndex];
+                sizes.RemoveAt(defaultIndex);
+                sizes.Insert(0, selectedDefault);
+            }
+        }
+
+        return sizes;
+    }
+
+    private static void AddUniqueSize(List<PrinterPaperSize> sizes, PrinterPaperSize candidate)
+    {
+        var duplicate = sizes.Any(size =>
+            string.Equals(size.Name, candidate.Name, StringComparison.OrdinalIgnoreCase) &&
+            size.HasSameDimensions(candidate.Width, candidate.Height));
+        if (!duplicate)
+        {
+            sizes.Add(candidate);
         }
     }
 
-    private static bool DimensionsMatch(
-        double? width,
-        double? height,
-        double expectedWidth,
-        double expectedHeight)
+    private static string GetMediaDisplayName(PageMediaSizeName? mediaSizeName)
     {
-        if (width is null || height is null)
+        if (mediaSizeName is null or PageMediaSizeName.Unknown)
         {
-            return false;
+            return "Custom";
         }
 
-        const double tolerance = 8d;
-        return Math.Abs(width.Value - expectedWidth) <= tolerance &&
-               Math.Abs(height.Value - expectedHeight) <= tolerance ||
-               Math.Abs(width.Value - expectedHeight) <= tolerance &&
-               Math.Abs(height.Value - expectedWidth) <= tolerance;
+        return mediaSizeName switch
+        {
+            PageMediaSizeName.ISOA3 => "A3",
+            PageMediaSizeName.ISOA4 => "A4",
+            PageMediaSizeName.ISOA5 => "A5",
+            PageMediaSizeName.NorthAmericaLetter => "Letter",
+            PageMediaSizeName.NorthAmericaLegal => "Legal",
+            _ => Regex.Replace(mediaSizeName.Value.ToString(), "(?<=[a-z0-9])(?=[A-Z])", " ")
+                .Replace("ISO", string.Empty, StringComparison.Ordinal)
+                .Replace("North America ", string.Empty, StringComparison.Ordinal)
+        };
     }
 
-    private static bool TicketUsesRequestedLargePaper(PrintTicket ticket, string paperSize)
+    private static bool TicketUsesRequestedPaper(PrintTicket ticket, PrinterPaperSize requestedSize)
     {
-        var expectedName = paperSize == "A3"
-            ? PageMediaSizeName.ISOA3
-            : PageMediaSizeName.NorthAmericaLegal;
-        var expectedWidth = paperSize == "A3" ? 1122.52 : 816d;
-        var expectedHeight = paperSize == "A3" ? 1587.4 : 1344d;
         var mediaSize = ticket.PageMediaSize;
 
-        return mediaSize?.PageMediaSizeName == expectedName ||
-               DimensionsMatch(mediaSize?.Width, mediaSize?.Height, expectedWidth, expectedHeight);
+        return (requestedSize.MediaSizeName is not null &&
+                mediaSize?.PageMediaSizeName == requestedSize.MediaSizeName) ||
+               requestedSize.HasSameDimensions(mediaSize?.Width, mediaSize?.Height, 8d);
     }
 
     public bool ShowProperties(IntPtr ownerHandle, PrinterDevice printer)
@@ -188,10 +292,10 @@ public sealed class PrinterService
         var printTicket = CreatePrintTicket(printQueue, printer.Name, options);
         var validation = printQueue.MergeAndValidatePrintTicket(printQueue.DefaultPrintTicket, printTicket);
         printTicket = validation.ValidatedPrintTicket;
-        if (options.PaperSize is "A3" or "Legal" &&
-            !TicketUsesRequestedLargePaper(printTicket, options.PaperSize))
+        if (!TicketUsesRequestedPaper(printTicket, options.PaperSize))
         {
-            throw new InvalidOperationException(UnsupportedLargePaperMessage);
+            throw new InvalidOperationException(
+                $"{options.PaperSize.DisplayName} is not available on this printer model.");
         }
 
         var capabilities = printQueue.GetPrintCapabilities(printTicket);
@@ -213,14 +317,24 @@ public sealed class PrinterService
                 Height = pageHeight,
                 Background = System.Windows.Media.Brushes.White
             };
+            var source = _imageService.LoadForPrint(page.FilePath, page.Rotation, options.ColorMode);
             var image = new System.Windows.Controls.Image
             {
-                Source = _imageService.LoadForPrint(page.FilePath, page.Rotation, options.ColorMode),
-                Width = printableWidth,
-                Height = printableHeight,
-                Stretch = Stretch.Uniform,
+                Source = source,
                 SnapsToDevicePixels = true
             };
+            if (options.FitToSelectedPrintSize)
+            {
+                image.Width = printableWidth;
+                image.Height = printableHeight;
+                image.Stretch = Stretch.Uniform;
+            }
+            else
+            {
+                image.Width = source.Width;
+                image.Height = source.Height;
+                image.Stretch = Stretch.None;
+            }
             RenderOptions.SetBitmapScalingMode(image, options.Quality switch
             {
                 PrintQualityMode.Draft => BitmapScalingMode.LowQuality,
@@ -271,13 +385,9 @@ public sealed class PrinterService
     private static void ApplyVisiblePrintOptions(PrintTicket ticket, PrintOptions options)
     {
         ticket.CopyCount = Math.Clamp(options.Copies, 1, 999);
-        ticket.PageMediaSize = new PageMediaSize(options.PaperSize switch
-        {
-            "A3" => PageMediaSizeName.ISOA3,
-            "Legal" => PageMediaSizeName.NorthAmericaLegal,
-            "Letter" => PageMediaSizeName.NorthAmericaLetter,
-            _ => PageMediaSizeName.ISOA4
-        });
+        ticket.PageMediaSize = options.PaperSize.MediaSizeName is { } mediaSizeName
+            ? new PageMediaSize(mediaSizeName)
+            : new PageMediaSize(options.PaperSize.Width, options.PaperSize.Height);
         ticket.PageOrientation = PageOrientation.Portrait;
         ticket.OutputColor = options.ColorMode switch
         {

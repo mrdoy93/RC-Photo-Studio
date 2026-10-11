@@ -8,7 +8,7 @@ A compact Windows desktop application for Epson and Brother printers and scanner
 - Detects installed USB and network printers, with Epson and Brother devices shown first
 - Flatbed scanning by default, with automatic document feeder available
 - A3, A4, Legal, and Letter scan sizes, with unsupported A3 and Legal options automatically hidden for the selected scanner
-- Unsupported A3 and Legal print paper options are automatically hidden for the selected printer
+- Detects every paper size reported by the selected printer, including driver-defined custom sizes and dimensions
 - 150, 200, 300, and 600 DPI scanning, with 300 DPI selected by default
 - Color, True Gray, Gray (Error Diffusion), and Black & White modes, with Color selected by default
 - Continuous multipage scanning with preview, zoom, scrolling, manual full-resolution crop, whole-page rotation, delete, and rescan controls
@@ -23,15 +23,18 @@ A compact Windows desktop application for Epson and Brother printers and scanner
 - Every completed scan automatically saves a JPEG copy to that folder, with Windows Pictures as the default
 - Native Epson/Brother printer properties
 - Scan and print settings close when the user clicks outside or activates another application
-- Clear error when the selected scanner or printer model cannot use A3 or Legal paper
-- Visible print paper, color, and quality controls plus a manual 1–999 copies box with decrease/increase buttons
-- **Print Now** snapshots and applies the visible paper, color, quality, copies, and reduction settings to that print job
-- Reduction presets for A3 to Legal/A4/Letter, Legal to A4/Letter, and A4 to Letter
-- Direct **Print Now** scans one page with the current settings and immediately sends it through the Windows XPS print queue, with no preview or print dialog
+- Clear error when the printer driver rejects the selected paper size
+- Visible print paper, color, quality, and **Fit to selected print size** controls plus a manual 1–999 copies box with decrease/increase buttons
+- A larger centered **Direct Print or Copy** chooser titled **Select copy to Print**, with five persistent presets named **Copy 1** through **Copy 5**
+- Left-clicking a Copy preset scans and prints immediately; right-clicking it opens that preset's paper, color, quality, copies, and fit settings
+- The Copy chooser remains open after starting a direct-print job, with its buttons disabled until the job finishes
+- Copy settings use explicit **OK** and **Cancel** actions; the Copy chooser stays open behind the editor, and confirmed settings persist after the app closes
+- Optional automatic scaling that reduces scanned content to the selected printer paper's printable area
+- Direct Copy printing scans one page and immediately sends it through the Windows XPS print queue, with no preview or print dialog
 - High-contrast light and dark modes with light mode as the initial default; later user theme changes are remembered
 - Fixed 760 × 576 window that opens in the center of the active screen while retaining full-size text and controls
 - Custom printer/scanner logo in the title bar, taskbar, and packaged executable
-- A larger primary **Scan** button, separate PDF actions, and a green direct-print action
+- A larger primary **Scan** button, separate PDF actions, and five green direct-print presets
 
 ## Requirements
 

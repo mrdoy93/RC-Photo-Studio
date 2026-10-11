@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
+using System.Printing;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
@@ -32,7 +33,10 @@ public partial class MainWindow : Window
     private WpfPoint _cropStart;
     private CancellationTokenSource? _scanCancellation;
     private int _scanCapabilityRequest;
+    private int? _activePrintPresetIndex;
+    private PrintPresetPreferences? _printEditorOriginalSettings;
 
+    private const int PrintPresetCount = 5;
     private const double PreviewZoomStep = 0.25d;
     private const double MinimumPreviewZoom = 0.25d;
     private const double MaximumPreviewZoom = 4d;
@@ -46,6 +50,7 @@ public partial class MainWindow : Window
         _printerService = new PrinterService(_imageService);
         _pdfService = new PdfService(_imageService, _tempSession);
         _preferences = _settingsService.Load();
+        EnsurePrintPresetSlots();
         if (!_preferences.HasExplicitThemePreference)
         {
             _preferences.IsDarkMode = false;
@@ -58,6 +63,7 @@ public partial class MainWindow : Window
         }
         SaveLocationText.Text = GetInitialSaveFolder(_preferences.SaveFolder);
         ApplyTheme(_preferences.IsDarkMode);
+        RefreshPrintPresetToolTips();
         SourceInitialized += (_, _) => ApplyWindowChromeTheme(_preferences.IsDarkMode);
         Loaded += MainWindow_Loaded;
         UpdateDocumentState();
@@ -314,24 +320,33 @@ public partial class MainWindow : Window
         return outputPath;
     }
 
-    private async void PrintButton_Click(object sender, RoutedEventArgs e)
+    private async void PrintPresetButton_Click(object sender, RoutedEventArgs e)
     {
-        if (PrinterCombo.SelectedItem is not PrinterDevice printer)
+        if (!TryGetPresetIndex(sender, out var presetIndex) ||
+            !TryResolvePrintPreset(presetIndex, out var printer, out var printOptions))
         {
-            ShowError("Select an installed printer first.");
             return;
         }
 
-        var printOptions = ReadPrintOptions();
-        if (printOptions.PaperSize is "A3" or "Legal" &&
-            !_printerService.SupportsPaperSize(printer, printOptions.PaperSize))
+        await PrintNowAsync(printer, printOptions, $"Copy {presetIndex + 1}");
+    }
+
+    private void PrintPresetButton_PreviewMouseRightButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!TryGetPresetIndex(sender, out var presetIndex))
         {
-            const string message = "A3 or Legal is not available on this Printer Model";
-            SetStatus(message, StatusKind.Error);
-            ShowError(message);
             return;
         }
 
+        e.Handled = true;
+        OpenPrintPresetEditor(presetIndex);
+    }
+
+    private async Task PrintNowAsync(
+        PrinterDevice printer,
+        PrintOptions printOptions,
+        string presetName)
+    {
         if (ScannerCombo.SelectedItem is not ScannerDevice scanner)
         {
             ShowError("Connect and select an Epson or Brother scanner first.");
@@ -346,7 +361,7 @@ public partial class MainWindow : Window
         _scanCancellation = cancellation;
 
         SetScanProgress(true, 0, "Preparing the scanner…");
-        SetBusy(true, $"Scanning for direct print: {printDescription}…");
+        SetBusy(true, $"{presetName}: scanning for direct print with {printDescription}…");
         try
         {
             var progress = new Progress<int>(UpdateScannerAcquisitionProgress);
@@ -366,9 +381,9 @@ public partial class MainWindow : Window
             await Task.Delay(120);
             SetScanProgress(false);
             var automaticJpegPath = await SaveAutomaticJpegCopyAsync(page);
-            SetStatus($"Sending print job: {printDescription}…", StatusKind.Working);
+            SetStatus($"{presetName}: sending print job with {printDescription}…", StatusKind.Working);
             await _printerService.PrintAsync(printer, [page], printOptions);
-            SetStatus($"Printed with {printDescription}; JPG saved to {Path.GetDirectoryName(automaticJpegPath)}", StatusKind.Success);
+            SetStatus($"{presetName} printed with {printDescription}; JPG saved to {Path.GetDirectoryName(automaticJpegPath)}", StatusKind.Success);
         }
         catch (OperationCanceledException)
         {
@@ -401,6 +416,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        var reopenPresetEditor = SettingsPopup.IsOpen && _activePrintPresetIndex is not null;
         try
         {
             SettingsPopup.IsOpen = false;
@@ -409,6 +425,7 @@ public partial class MainWindow : Window
             var owner = new WindowInteropHelper(this).Handle;
             if (_printerService.ShowProperties(owner, printer))
             {
+                UpdatePrintPaperSizes();
                 SetStatus("Printer properties updated", StatusKind.Success);
             }
         }
@@ -416,6 +433,14 @@ public partial class MainWindow : Window
         {
             SetStatus("Printer properties unavailable", StatusKind.Error);
             ShowError(exception.Message);
+        }
+        finally
+        {
+            if (reopenPresetEditor && _activePrintPresetIndex is not null)
+            {
+                Activate();
+                SettingsPopup.IsOpen = true;
+            }
         }
     }
 
@@ -714,12 +739,25 @@ public partial class MainWindow : Window
 
     private void ScanSettingsButton_Click(object sender, RoutedEventArgs e)
     {
-        ToggleSettingsPopup(showScanSettings: true);
+        PrintPresetPopup.IsOpen = false;
+        ToggleScanSettingsPopup();
     }
 
     private void PrintSettingsButton_Click(object sender, RoutedEventArgs e)
     {
-        ToggleSettingsPopup(showScanSettings: false);
+        if (_activePrintPresetIndex is not null)
+        {
+            CloseSettingsPopup();
+        }
+
+        if (PrintPresetPopup.IsOpen)
+        {
+            PrintPresetPopup.IsOpen = false;
+            return;
+        }
+
+        CloseSettingsPopup();
+        PrintPresetPopup.IsOpen = true;
     }
 
     private void Window_PreviewMouseDown(object sender, MouseButtonEventArgs e)
@@ -730,29 +768,103 @@ public partial class MainWindow : Window
             !ScanSettingsButton.IsMouseOver &&
             !PrintSettingsButton.IsMouseOver)
         {
-            SettingsPopup.IsOpen = false;
+            CloseSettingsPopup();
+        }
+
+        if (PrintPresetPopup.IsOpen &&
+            !PrintPresetPopupHost.IsMouseOver &&
+            !SettingsPopupHost.IsMouseOver &&
+            !SettingsPanel.IsMouseOver &&
+            !PrintSettingsButton.IsMouseOver)
+        {
+            PrintPresetPopup.IsOpen = false;
         }
     }
 
     private void Window_Deactivated(object? sender, EventArgs e)
     {
-        SettingsPopup.IsOpen = false;
+        CloseSettingsPopup();
+        if (!_isBusy)
+        {
+            PrintPresetPopup.IsOpen = false;
+        }
     }
 
-    private void ToggleSettingsPopup(bool showScanSettings)
+    private void ToggleScanSettingsPopup()
     {
         EnsureSettingsPopupContent();
-        var selectedPanelIsOpen = SettingsPopup.IsOpen &&
-                                  ScanSettingsPanel.Visibility == (showScanSettings ? Visibility.Visible : Visibility.Collapsed);
-        if (selectedPanelIsOpen)
+        if (SettingsPopup.IsOpen && ScanSettingsPanel.Visibility == Visibility.Visible)
         {
-            SettingsPopup.IsOpen = false;
+            CloseSettingsPopup();
             return;
         }
 
-        ScanSettingsPanel.Visibility = showScanSettings ? Visibility.Visible : Visibility.Collapsed;
-        PrintSettingsPanel.Visibility = showScanSettings ? Visibility.Collapsed : Visibility.Visible;
+        CloseSettingsPopup();
+        ScanSettingsPanel.Visibility = Visibility.Visible;
+        PrintSettingsPanel.Visibility = Visibility.Collapsed;
+        SettingsPopup.PlacementTarget = ThemeToggleButton;
+        SettingsPopup.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+        SettingsPopup.HorizontalOffset = -390;
+        SettingsPopup.VerticalOffset = 6;
         SettingsPopup.IsOpen = true;
+    }
+
+    private void OpenPrintPresetEditor(int presetIndex)
+    {
+        CloseSettingsPopup();
+        EnsureSettingsPopupContent();
+        _printEditorOriginalSettings = CaptureCurrentPrintSettings();
+        LoadPrintPresetIntoEditor(presetIndex);
+        _activePrintPresetIndex = presetIndex;
+        PrintOptionsHeaderText.Text = $"COPY {presetIndex + 1} SETTINGS";
+        ScanSettingsPanel.Visibility = Visibility.Collapsed;
+        PrintSettingsPanel.Visibility = Visibility.Visible;
+        SettingsPopup.PlacementTarget = RootGrid;
+        SettingsPopup.Placement = System.Windows.Controls.Primitives.PlacementMode.Center;
+        SettingsPopup.HorizontalOffset = 0;
+        SettingsPopup.VerticalOffset = 0;
+        SettingsPopup.IsOpen = true;
+        PrintPresetPopup.IsOpen = true;
+        SetStatus($"Editing Copy {presetIndex + 1}; choose OK to save or Cancel to discard changes", StatusKind.Working);
+    }
+
+    private void CloseSettingsPopup()
+    {
+        if (_activePrintPresetIndex is not null && _printEditorOriginalSettings is not null)
+        {
+            ApplyPrintPresetToEditor(_printEditorOriginalSettings);
+        }
+
+        SettingsPopup.IsOpen = false;
+        _activePrintPresetIndex = null;
+        _printEditorOriginalSettings = null;
+        PrintOptionsHeaderText.Text = "PRINT OPTIONS";
+    }
+
+    private void PrintSettingsOkButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_activePrintPresetIndex is not { } presetIndex || !SaveActivePrintPreset())
+        {
+            return;
+        }
+
+        SettingsPopup.IsOpen = false;
+        _activePrintPresetIndex = null;
+        _printEditorOriginalSettings = null;
+        PrintOptionsHeaderText.Text = "PRINT OPTIONS";
+        PrintPresetPopup.IsOpen = true;
+        SetStatus($"Copy {presetIndex + 1} print settings saved", StatusKind.Success);
+    }
+
+    private void PrintSettingsCancelButton_Click(object sender, RoutedEventArgs e)
+    {
+        var presetIndex = _activePrintPresetIndex;
+        CloseSettingsPopup();
+        PrintPresetPopup.IsOpen = true;
+        if (presetIndex is not null)
+        {
+            SetStatus($"Copy {presetIndex.Value + 1} changes cancelled", StatusKind.Warning);
+        }
     }
 
     private void EnsureSettingsPopupContent()
@@ -821,22 +933,235 @@ public partial class MainWindow : Window
         ReadDpi(),
         SelectedText(PaperSizeCombo));
 
-    private PrintOptions ReadPrintOptions() => new(
-        SelectedText(PrintPaperSizeCombo),
-        SelectedText(PrintColorCombo) switch
+    private PrintOptions ReadPrintOptions()
+    {
+        var paperSize = PrintPaperSizeCombo.SelectedItem as PrinterPaperSize
+            ?? throw new InvalidOperationException("Select a paper size supported by the printer.");
+        return new PrintOptions(
+            paperSize,
+            SelectedText(PrintColorCombo) switch
+            {
+                "Grayscale" => PrintColorMode.Grayscale,
+                "Black & White" => PrintColorMode.BlackAndWhite,
+                _ => PrintColorMode.Color
+            },
+            SelectedText(PrintQualityCombo) switch
+            {
+                "Draft" => PrintQualityMode.Draft,
+                "High" => PrintQualityMode.High,
+                _ => PrintQualityMode.Normal
+            },
+            FitToPrintSizeCheck.IsChecked == true,
+            ReadCopyCount());
+    }
+
+    private void EnsurePrintPresetSlots()
+    {
+        _preferences.PrintPresets ??= [];
+        while (_preferences.PrintPresets.Count < PrintPresetCount)
         {
-            "Grayscale" => PrintColorMode.Grayscale,
-            "Black & White" => PrintColorMode.BlackAndWhite,
-            _ => PrintColorMode.Color
-        },
-        SelectedText(PrintQualityCombo) switch
+            _preferences.PrintPresets.Add(null);
+        }
+
+        if (_preferences.PrintPresets.Count > PrintPresetCount)
         {
-            "Draft" => PrintQualityMode.Draft,
-            "High" => PrintQualityMode.High,
-            _ => PrintQualityMode.Normal
-        },
-        SelectedText(PrintReductionCombo),
-        ReadCopyCount());
+            _preferences.PrintPresets.RemoveRange(
+                PrintPresetCount,
+                _preferences.PrintPresets.Count - PrintPresetCount);
+        }
+    }
+
+    private static bool TryGetPresetIndex(object sender, out int presetIndex)
+    {
+        presetIndex = -1;
+        return sender is System.Windows.Controls.Button { Tag: not null } button &&
+               int.TryParse(Convert.ToString(button.Tag), out presetIndex) &&
+               presetIndex is >= 0 and < PrintPresetCount;
+    }
+
+    private bool TryResolvePrintPreset(
+        int presetIndex,
+        out PrinterDevice printer,
+        out PrintOptions printOptions)
+    {
+        EnsurePrintPresetSlots();
+        var savedPreset = _preferences.PrintPresets[presetIndex];
+        if (savedPreset is null)
+        {
+            if (PrinterCombo.SelectedItem is not PrinterDevice selectedPrinter ||
+                PrintPaperSizeCombo.SelectedItem is not PrinterPaperSize)
+            {
+                ShowError($"Right-click Copy {presetIndex + 1} and select its printer and paper settings first.");
+                printer = null!;
+                printOptions = null!;
+                return false;
+            }
+
+            printer = selectedPrinter;
+            printOptions = ReadPrintOptions();
+            _ = SavePrintPreset(presetIndex, printer, printOptions);
+            return true;
+        }
+
+        var savedPrinter = PrinterCombo.Items.OfType<PrinterDevice>().FirstOrDefault(device =>
+            string.Equals(device.Name, savedPreset.PrinterName, StringComparison.OrdinalIgnoreCase));
+        if (savedPrinter is null)
+        {
+            ShowError(
+                $"The printer saved for Copy {presetIndex + 1} is not installed. Right-click the button to update its settings.");
+            printer = null!;
+            printOptions = null!;
+            return false;
+        }
+
+        printer = savedPrinter;
+        var mediaSizeName = savedPreset.MediaSizeName is { } mediaValue &&
+                            Enum.IsDefined(typeof(PageMediaSizeName), mediaValue)
+            ? (PageMediaSizeName?)mediaValue
+            : null;
+        var storedPaper = new PrinterPaperSize(
+            savedPreset.PaperName,
+            mediaSizeName,
+            savedPreset.PaperWidth,
+            savedPreset.PaperHeight,
+            savedPreset.DriverPaperKind);
+        var detectedPaper = _printerService.GetPaperSizes(printer).FirstOrDefault(size =>
+            string.Equals(size.Name, storedPaper.Name, StringComparison.OrdinalIgnoreCase) &&
+            size.HasSameDimensions(storedPaper.Width, storedPaper.Height)) ?? storedPaper;
+
+        var colorMode = ParseEnumOrDefault(savedPreset.ColorMode, PrintColorMode.Color);
+        var quality = ParseEnumOrDefault(savedPreset.Quality, PrintQualityMode.Normal);
+        printOptions = new PrintOptions(
+            detectedPaper,
+            colorMode,
+            quality,
+            savedPreset.FitToSelectedPrintSize,
+            Math.Clamp(savedPreset.Copies, 1, 999));
+        return true;
+    }
+
+    private void LoadPrintPresetIntoEditor(int presetIndex)
+    {
+        EnsurePrintPresetSlots();
+        var savedPreset = _preferences.PrintPresets[presetIndex];
+        if (savedPreset is null)
+        {
+            return;
+        }
+
+        ApplyPrintPresetToEditor(savedPreset);
+    }
+
+    private PrintPresetPreferences? CaptureCurrentPrintSettings()
+    {
+        if (PrinterCombo.SelectedItem is not PrinterDevice printer ||
+            PrintPaperSizeCombo.SelectedItem is not PrinterPaperSize)
+        {
+            return null;
+        }
+
+        return CreatePrintPresetPreferences(printer, ReadPrintOptions());
+    }
+
+    private void ApplyPrintPresetToEditor(PrintPresetPreferences savedPreset)
+    {
+        var printer = PrinterCombo.Items.OfType<PrinterDevice>().FirstOrDefault(device =>
+            string.Equals(device.Name, savedPreset.PrinterName, StringComparison.OrdinalIgnoreCase));
+        if (printer is not null)
+        {
+            PrinterCombo.SelectedItem = printer;
+            if (PrintPaperSizeCombo.ItemsSource is IEnumerable<PrinterPaperSize> paperSizes)
+            {
+                PrintPaperSizeCombo.SelectedItem = paperSizes.FirstOrDefault(size =>
+                    string.Equals(size.Name, savedPreset.PaperName, StringComparison.OrdinalIgnoreCase) &&
+                    size.HasSameDimensions(savedPreset.PaperWidth, savedPreset.PaperHeight))
+                    ?? paperSizes.FirstOrDefault(size =>
+                        savedPreset.MediaSizeName is { } mediaValue &&
+                        (int?)size.MediaSizeName == mediaValue)
+                    ?? paperSizes.FirstOrDefault();
+            }
+        }
+
+        var colorMode = ParseEnumOrDefault(savedPreset.ColorMode, PrintColorMode.Color);
+        var quality = ParseEnumOrDefault(savedPreset.Quality, PrintQualityMode.Normal);
+        SelectComboText(PrintColorCombo, colorMode switch
+        {
+            PrintColorMode.Grayscale => "Grayscale",
+            PrintColorMode.BlackAndWhite => "Black & White",
+            _ => "Color"
+        });
+        SelectComboText(PrintQualityCombo, quality.ToString());
+        FitToPrintSizeCheck.IsChecked = savedPreset.FitToSelectedPrintSize;
+        SetCopyCount(savedPreset.Copies);
+    }
+
+    private bool SaveActivePrintPreset()
+    {
+        if (_activePrintPresetIndex is not { } presetIndex ||
+            PrinterCombo.SelectedItem is not PrinterDevice printer ||
+            PrintPaperSizeCombo.SelectedItem is not PrinterPaperSize)
+        {
+            ShowError("Select a printer and paper size before saving this Copy preset.");
+            return false;
+        }
+
+        return SavePrintPreset(presetIndex, printer, ReadPrintOptions());
+    }
+
+    private bool SavePrintPreset(int presetIndex, PrinterDevice printer, PrintOptions options)
+    {
+        EnsurePrintPresetSlots();
+        _preferences.PrintPresets[presetIndex] = CreatePrintPresetPreferences(printer, options);
+        RefreshPrintPresetToolTips();
+        try
+        {
+            _settingsService.Save(_preferences);
+            return true;
+        }
+        catch
+        {
+            SetStatus($"Copy {presetIndex + 1} settings could not be saved", StatusKind.Warning);
+            return false;
+        }
+    }
+
+    private static PrintPresetPreferences CreatePrintPresetPreferences(
+        PrinterDevice printer,
+        PrintOptions options) =>
+        new()
+        {
+            PrinterName = printer.Name,
+            PaperName = options.PaperSize.Name,
+            MediaSizeName = options.PaperSize.MediaSizeName is { } mediaSizeName
+                ? (int)mediaSizeName
+                : null,
+            PaperWidth = options.PaperSize.Width,
+            PaperHeight = options.PaperSize.Height,
+            DriverPaperKind = options.PaperSize.DriverPaperKind,
+            ColorMode = options.ColorMode.ToString(),
+            Quality = options.Quality.ToString(),
+            FitToSelectedPrintSize = options.FitToSelectedPrintSize,
+            Copies = options.Copies
+        };
+
+    private void RefreshPrintPresetToolTips()
+    {
+        EnsurePrintPresetSlots();
+        var buttons = new[] { Copy1Button, Copy2Button, Copy3Button, Copy4Button, Copy5Button };
+        for (var index = 0; index < buttons.Length; index++)
+        {
+            var savedPreset = _preferences.PrintPresets[index];
+            buttons[index].ToolTip = savedPreset is null
+                ? $"Left-click: direct print with current defaults\nRight-click: edit Copy {index + 1} settings"
+                : $"Left-click: direct print\nRight-click: edit settings\n{savedPreset.PrinterName} · {savedPreset.PaperName} · {savedPreset.ColorMode} · {savedPreset.Copies} cop{(savedPreset.Copies == 1 ? "y" : "ies")}";
+        }
+    }
+
+    private static TEnum ParseEnumOrDefault<TEnum>(string? value, TEnum fallback)
+        where TEnum : struct, Enum =>
+        Enum.TryParse(value, ignoreCase: true, out TEnum parsed) && Enum.IsDefined(parsed)
+            ? parsed
+            : fallback;
 
     private int ReadCopyCount()
     {
@@ -878,9 +1203,7 @@ public partial class MainWindow : Window
 
     private static string DescribePrintOptions(PrintOptions options)
     {
-        var size = options.ReductionPreset.StartsWith("None", StringComparison.OrdinalIgnoreCase)
-            ? options.PaperSize
-            : options.ReductionPreset;
+        var sizing = options.FitToSelectedPrintSize ? ", fit to size" : ", original size";
         var color = options.ColorMode switch
         {
             PrintColorMode.Grayscale => "grayscale",
@@ -888,7 +1211,7 @@ public partial class MainWindow : Window
             _ => "color"
         };
         var copies = options.Copies == 1 ? "1 copy" : $"{options.Copies} copies";
-        return $"{size}, {color}, {options.Quality.ToString().ToLowerInvariant()} quality, {copies}";
+        return $"{options.PaperSize.Name}{sizing}, {color}, {options.Quality.ToString().ToLowerInvariant()} quality, {copies}";
     }
 
     private int ReadDpi()
@@ -942,15 +1265,22 @@ public partial class MainWindow : Window
         DocumentPageCountText.Text = $"Pages: {Pages.Count}";
         FinishButton.IsEnabled = hasPages && !_isBusy;
         SaveButton.IsEnabled = hasPages && !_isBusy;
-        PrintButton.IsEnabled = !_isBusy &&
-                                ScannerCombo.SelectedItem is ScannerDevice &&
-                                PrinterCombo.SelectedItem is PrinterDevice;
+        UpdatePrintPresetButtonState();
         ScanButton.Content = ContinuousScanCheck.IsChecked == true && hasPages ? "Scan Next Page" : "Scan";
         FinishButton.Content = "Finish & Combine PDF";
         SaveButton.Content = "Save PDFs as ZIP";
-        PrintButton.Content = "Print Now";
         EstimatedSizeText.Text = $"PDF: {EstimateOutputSize()}";
         ShowSelectedPage();
+    }
+
+    private void UpdatePrintPresetButtonState()
+    {
+        var enabled = !_isBusy &&
+                      PrinterCombo.SelectedItem is PrinterDevice;
+        foreach (var button in new[] { Copy1Button, Copy2Button, Copy3Button, Copy4Button, Copy5Button })
+        {
+            button.IsEnabled = enabled;
+        }
     }
 
     private string EstimateOutputSize()
@@ -997,14 +1327,12 @@ public partial class MainWindow : Window
         _isBusy = busy;
         if (busy)
         {
-            SettingsPopup.IsOpen = false;
+            CloseSettingsPopup();
         }
         ScanButton.IsEnabled = !busy && ScannerCombo.SelectedItem is ScannerDevice;
         FinishButton.IsEnabled = !busy && Pages.Count > 0;
         SaveButton.IsEnabled = !busy && Pages.Count > 0;
-        PrintButton.IsEnabled = !busy &&
-                                ScannerCombo.SelectedItem is ScannerDevice &&
-                                PrinterCombo.SelectedItem is PrinterDevice;
+        UpdatePrintPresetButtonState();
         if (message is not null)
         {
             SetStatus(message, StatusKind.Working);
@@ -1044,8 +1372,8 @@ public partial class MainWindow : Window
 
     private void SetScanProgress(bool visible, int percentage = 0, string? detail = null)
     {
-        var wasVisible = ScanProgressOverlay.Visibility == Visibility.Visible;
-        ScanProgressOverlay.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        var wasVisible = ScanProgressOverlay.IsOpen;
+        ScanProgressOverlay.IsOpen = visible;
         if (!visible)
         {
             ScanProgressBar.Value = 0;
@@ -1091,9 +1419,7 @@ public partial class MainWindow : Window
     private async void ScannerCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         ScanButton.IsEnabled = !_isBusy && ScannerCombo.SelectedItem is ScannerDevice;
-        PrintButton.IsEnabled = !_isBusy &&
-                                ScannerCombo.SelectedItem is ScannerDevice &&
-                                PrinterCombo.SelectedItem is PrinterDevice;
+        UpdatePrintPresetButtonState();
 
         var request = ++_scanCapabilityRequest;
         HideLargeScanSizes();
@@ -1131,25 +1457,20 @@ public partial class MainWindow : Window
 
     private void PrinterCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        PrintButton.IsEnabled = !_isBusy &&
-                                ScannerCombo.SelectedItem is ScannerDevice &&
-                                PrinterCombo.SelectedItem is PrinterDevice;
+        UpdatePrintPresetButtonState();
         UpdatePrintPaperSizes();
     }
 
     private void UpdatePrintPaperSizes()
     {
-        if (PrintPaperSizeCombo is null || A3PrintSizeItem is null || LegalPrintSizeItem is null)
+        if (PrintPaperSizeCombo is null)
         {
             return;
         }
 
-        A3PrintSizeItem.Visibility = Visibility.Collapsed;
-        LegalPrintSizeItem.Visibility = Visibility.Collapsed;
-        if (SelectedText(PrintPaperSizeCombo) is "A3" or "Legal")
-        {
-            SelectComboText(PrintPaperSizeCombo, "A4");
-        }
+        var previousSize = PrintPaperSizeCombo.SelectedItem as PrinterPaperSize;
+        PrintPaperSizeCombo.ItemsSource = null;
+        PrintPaperSizeCombo.IsEnabled = false;
 
         if (PrinterCombo.SelectedItem is not PrinterDevice printer)
         {
@@ -1158,69 +1479,22 @@ public partial class MainWindow : Window
 
         try
         {
-            A3PrintSizeItem.Visibility = _printerService.SupportsPaperSize(printer, "A3")
-                ? Visibility.Visible
-                : Visibility.Collapsed;
-            LegalPrintSizeItem.Visibility = _printerService.SupportsPaperSize(printer, "Legal")
-                ? Visibility.Visible
-                : Visibility.Collapsed;
+            var paperSizes = _printerService.GetPaperSizes(printer);
+            PrintPaperSizeCombo.ItemsSource = paperSizes;
+            PrintPaperSizeCombo.SelectedItem = previousSize is null
+                ? paperSizes.FirstOrDefault()
+                : paperSizes.FirstOrDefault(size =>
+                    size.MediaSizeName == previousSize.MediaSizeName && size.MediaSizeName is not null ||
+                    size.HasSameDimensions(previousSize.Width, previousSize.Height))
+                  ?? paperSizes.FirstOrDefault();
+            PrintPaperSizeCombo.IsEnabled = paperSizes.Count > 0;
         }
-        catch
+        catch (Exception exception)
         {
-            // A legacy driver that cannot report capabilities will validate the
-            // selected paper size when the print job is created.
-            A3PrintSizeItem.Visibility = Visibility.Visible;
-            LegalPrintSizeItem.Visibility = Visibility.Visible;
+            SetStatus("Printer paper sizes could not be detected", StatusKind.Warning);
+            ShowError(exception.Message);
         }
     }
-
-    private void PrintReductionCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (PaperSizeCombo is null || PrintPaperSizeCombo is null || PrintReductionCombo is null)
-        {
-            return;
-        }
-
-        var preset = SelectedText(PrintReductionCombo);
-        var separator = preset.IndexOf(" to ", StringComparison.OrdinalIgnoreCase);
-        if (separator < 0)
-        {
-            return;
-        }
-
-        var sourceSize = preset[..separator];
-        var targetSize = preset[(separator + 4)..];
-        if (!IsScanSizeAvailable(sourceSize) || !IsPrintSizeAvailable(targetSize))
-        {
-            SelectComboText(PrintReductionCombo, "None (fit to selected paper)");
-            if (StatusText is not null)
-            {
-                SetStatus("That reduction is not available for the selected devices", StatusKind.Warning);
-            }
-            return;
-        }
-
-        SelectComboText(PaperSizeCombo, sourceSize);
-        SelectComboText(PrintPaperSizeCombo, targetSize);
-        if (StatusText is not null)
-        {
-            SetStatus($"Reduction set: scan {sourceSize}, print {targetSize}", StatusKind.Success);
-        }
-    }
-
-    private bool IsScanSizeAvailable(string paperSize) => paperSize switch
-    {
-        "A3" => A3ScanSizeItem.Visibility == Visibility.Visible,
-        "Legal" => LegalScanSizeItem.Visibility == Visibility.Visible,
-        _ => true
-    };
-
-    private bool IsPrintSizeAvailable(string paperSize) => paperSize switch
-    {
-        "A3" => A3PrintSizeItem.Visibility == Visibility.Visible,
-        "Legal" => LegalPrintSizeItem.Visibility == Visibility.Visible,
-        _ => true
-    };
 
     private void CompressionCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -1252,6 +1526,7 @@ public partial class MainWindow : Window
 
     private void Window_Closing(object? sender, CancelEventArgs e)
     {
+        CloseSettingsPopup();
         _preferences.LastScannerId = (ScannerCombo.SelectedItem as ScannerDevice)?.Id;
         _preferences.LastPrinterName = (PrinterCombo.SelectedItem as PrinterDevice)?.Name;
         _preferences.SaveFolder = SaveLocationText.Text;

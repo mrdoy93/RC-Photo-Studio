@@ -2,6 +2,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.IO.Compression;
+using System.Text.Json;
 using PdfSharp.Pdf.IO;
 using PrinterScanner.Models;
 using PrinterScanner.Services;
@@ -23,6 +24,31 @@ internal static class Program
                 "Printer dropdown name was not concise.");
             Require(new ScannerDevice("scanner-id", "Brother Scanner", "Brother").ToString() == "Brother Scanner",
                 "Scanner dropdown name was not concise.");
+            var customPaper = PrinterPaperSize.FromHundredthsOfAnInch("Custom Photo", 394, 591, 256);
+            Require(customPaper.DisplayName.StartsWith("Custom Photo (", StringComparison.Ordinal) &&
+                    customPaper.DisplayName.EndsWith(" mm)", StringComparison.Ordinal),
+                "Custom printer paper did not include its detected dimensions.");
+            Require(customPaper.HasSameDimensions(customPaper.Height, customPaper.Width),
+                "Printer paper dimensions did not match in landscape orientation.");
+            var presetJson = JsonSerializer.Serialize(new AppPreferences
+            {
+                PrintPresets =
+                [
+                    new PrintPresetPreferences
+                    {
+                        PrinterName = "Test Printer",
+                        PaperName = customPaper.Name,
+                        PaperWidth = customPaper.Width,
+                        PaperHeight = customPaper.Height,
+                        ColorMode = PrintColorMode.Grayscale.ToString(),
+                        Quality = PrintQualityMode.High.ToString(),
+                        Copies = 3
+                    }
+                ]
+            });
+            var restoredPreferences = JsonSerializer.Deserialize<AppPreferences>(presetJson);
+            Require(restoredPreferences?.PrintPresets.Single()?.Copies == 3,
+                "Saved Copy preset settings did not survive serialization.");
 
             using (var cancellation = new CancellationTokenSource())
             {
@@ -81,7 +107,37 @@ internal static class Program
                 Require(croppedImage.Width == 550 && croppedImage.Height is >= 425 and <= 426,
                     "Full-resolution crop did not follow the rotated page coordinates.");
             }
-            _ = new PrinterService(imageService).GetPrinters();
+            var printerService = new PrinterService(imageService);
+            var installedPrinters = printerService.GetPrinters();
+            foreach (var printer in installedPrinters)
+            {
+                var detectedPaperSizes = printerService.GetPaperSizes(printer);
+                Require(detectedPaperSizes.Count > 0,
+                    $"No paper sizes were available for {printer.Name}.");
+
+                var driverSettings = new System.Drawing.Printing.PrinterSettings
+                {
+                    PrinterName = printer.Name
+                };
+                foreach (System.Drawing.Printing.PaperSize driverPaper in driverSettings.PaperSizes)
+                {
+                    if (driverPaper.Kind != System.Drawing.Printing.PaperKind.Custom ||
+                        driverPaper.Width <= 0 || driverPaper.Height <= 0)
+                    {
+                        continue;
+                    }
+
+                    var expected = PrinterPaperSize.FromHundredthsOfAnInch(
+                        driverPaper.PaperName,
+                        driverPaper.Width,
+                        driverPaper.Height,
+                        driverPaper.RawKind);
+                    Require(detectedPaperSizes.Any(size =>
+                            string.Equals(size.Name, expected.Name, StringComparison.OrdinalIgnoreCase) &&
+                            size.HasSameDimensions(expected.Width, expected.Height)),
+                        $"Custom paper size {expected.DisplayName} was not detected for {printer.Name}.");
+                }
+            }
 
             var pdfPath = Path.Combine(testFolder, "combined.pdf");
             await pdfService.CreateAsync(pages, pdfPath, PdfCompression.Balanced, "A4");

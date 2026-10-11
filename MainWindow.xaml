@@ -16,7 +16,7 @@
         PreviewMouseDown="Window_PreviewMouseDown"
         Deactivated="Window_Deactivated"
         Closing="Window_Closing">
-    <Grid>
+    <Grid x:Name="RootGrid">
         <Grid.RowDefinitions>
             <RowDefinition Height="54" />
             <RowDefinition Height="*" />
@@ -40,9 +40,10 @@
                     <Button x:Name="ScanSettingsButton" Content="Scan Settings"
                             Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,7,0"
                             Click="ScanSettingsButton_Click" />
-                    <Button x:Name="PrintSettingsButton" Content="Print Settings"
+                    <Button x:Name="PrintSettingsButton" Content="Direct Print or Copy"
                             Style="{StaticResource SecondaryButtonStyle}" Margin="0,0,7,0"
-                            Click="PrintSettingsButton_Click" />
+                            Click="PrintSettingsButton_Click"
+                            ToolTip="Choose a Copy button. Left-click prints; right-click edits its settings." />
                     <Button x:Name="ThemeToggleButton" Style="{StaticResource SecondaryButtonStyle}"
                             Content="☀  Light" Click="ThemeToggleButton_Click" MinWidth="88" />
                 </StackPanel>
@@ -165,7 +166,8 @@
                     <StackPanel x:Name="PrintSettingsPanel" Visibility="Collapsed">
                     <Border Background="{DynamicResource SelectionBrush}" BorderBrush="{DynamicResource BorderBrush}"
                             BorderThickness="1" CornerRadius="6" Padding="8,5" Margin="0,0,0,4">
-                        <TextBlock Text="PRINT OPTIONS" Style="{StaticResource SectionHeaderTextStyle}" />
+                        <TextBlock x:Name="PrintOptionsHeaderText" Text="PRINT OPTIONS"
+                                   Style="{StaticResource SectionHeaderTextStyle}" />
                     </Border>
 
                     <Grid Margin="0,0,0,4">
@@ -180,20 +182,17 @@
 
                     <Grid Margin="0,0,0,4">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="1.6*" />
                             <ColumnDefinition Width="8" />
-                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="0.7*" />
                             <ColumnDefinition Width="8" />
-                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="0.7*" />
                         </Grid.ColumnDefinitions>
                         <StackPanel>
                             <TextBlock Text="Print Paper" Style="{StaticResource FieldLabelStyle}" />
-                            <ComboBox x:Name="PrintPaperSizeCombo" Style="{StaticResource CompactComboStyle}">
-                                <ComboBoxItem x:Name="A3PrintSizeItem" Content="A3" Visibility="Collapsed" />
-                                <ComboBoxItem Content="A4" IsSelected="True" />
-                                <ComboBoxItem x:Name="LegalPrintSizeItem" Content="Legal" Visibility="Collapsed" />
-                                <ComboBoxItem Content="Letter" />
-                            </ComboBox>
+                            <ComboBox x:Name="PrintPaperSizeCombo" Style="{StaticResource CompactComboStyle}"
+                                      DisplayMemberPath="DisplayName"
+                                      AutomationProperties.Name="Printer paper size" />
                         </StackPanel>
                         <StackPanel Grid.Column="2">
                             <TextBlock Text="Print Color" Style="{StaticResource FieldLabelStyle}" />
@@ -217,22 +216,17 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="8" />
-                            <ColumnDefinition Width="120" />
+                            <ColumnDefinition Width="108" />
                             <ColumnDefinition Width="8" />
-                            <ColumnDefinition Width="142" />
+                            <ColumnDefinition Width="140" />
                         </Grid.ColumnDefinitions>
                         <StackPanel>
-                            <TextBlock Text="Reduce / Convert Size" Style="{StaticResource FieldLabelStyle}" />
-                            <ComboBox x:Name="PrintReductionCombo" Style="{StaticResource CompactComboStyle}"
-                                      SelectionChanged="PrintReductionCombo_SelectionChanged">
-                                <ComboBoxItem Content="None (fit to selected paper)" IsSelected="True" />
-                                <ComboBoxItem Content="A3 to Legal" />
-                                <ComboBoxItem Content="A3 to A4" />
-                                <ComboBoxItem Content="A3 to Letter" />
-                                <ComboBoxItem Content="Legal to A4" />
-                                <ComboBoxItem Content="Legal to Letter" />
-                                <ComboBoxItem Content="A4 to Letter" />
-                            </ComboBox>
+                            <TextBlock Text="Sizing" Style="{StaticResource FieldLabelStyle}" />
+                            <CheckBox x:Name="FitToPrintSizeCheck" IsChecked="True"
+                                      Height="34" VerticalContentAlignment="Center"
+                                      Content="Fit to selected print size"
+                                      ToolTip="Scale the scanned page to fit inside the printable area of the selected paper size"
+                                      Style="{StaticResource ToggleCheckStyle}" />
                         </StackPanel>
                         <StackPanel Grid.Column="2">
                             <TextBlock Text="Copies" Style="{StaticResource FieldLabelStyle}" />
@@ -263,6 +257,12 @@
                                     HorizontalAlignment="Stretch" Click="PrinterPropertiesButton_Click" />
                         </StackPanel>
                     </Grid>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+                        <Button Content="Cancel" Style="{StaticResource SecondaryButtonStyle}"
+                                MinWidth="88" Margin="0,0,8,0" Click="PrintSettingsCancelButton_Click" />
+                        <Button Content="OK" Style="{StaticResource PrimaryButtonStyle}"
+                                MinWidth="88" Click="PrintSettingsOkButton_Click" />
+                    </StackPanel>
                     </StackPanel>
                 </StackPanel>
             </Border>
@@ -395,7 +395,7 @@
                 </Grid>
                 <StackPanel Grid.Row="1" Orientation="Horizontal" VerticalAlignment="Center"
                             HorizontalAlignment="Right">
-                    <Border Padding="4" Margin="0,0,10,0" CornerRadius="7"
+                    <Border Padding="4" CornerRadius="7"
                             Background="{DynamicResource PreviewBackgroundBrush}"
                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
                         <StackPanel Orientation="Horizontal">
@@ -407,19 +407,16 @@
                                     Click="SaveButton_Click" />
                         </StackPanel>
                     </Border>
-                    <Border Padding="4" CornerRadius="7"
-                            Background="{DynamicResource PreviewBackgroundBrush}"
-                            BorderBrush="{DynamicResource SuccessBrush}" BorderThickness="1">
-                        <Button x:Name="PrintButton" Content="Print Now" Style="{StaticResource PrintButtonStyle}"
-                                MinWidth="96" Click="PrintButton_Click"
-                                ToolTip="Scan one page and send it directly to the selected printer." />
-                    </Border>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <Grid x:Name="ScanProgressOverlay" Grid.RowSpan="3" Panel.ZIndex="100"
-              Background="#72000000" Visibility="Collapsed">
+        <Popup x:Name="ScanProgressOverlay" PlacementTarget="{Binding ElementName=RootGrid}"
+               Placement="Center" AllowsTransparency="True" PopupAnimation="Fade"
+               StaysOpen="True" Focusable="False">
+            <Grid Width="{Binding ActualWidth, ElementName=RootGrid}"
+                  Height="{Binding ActualHeight, ElementName=RootGrid}"
+                  Background="#72000000">
             <Border Width="350" Padding="24" HorizontalAlignment="Center" VerticalAlignment="Center"
                     Background="{DynamicResource PanelBackgroundBrush}"
                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10">
@@ -447,14 +444,48 @@
                             Click="CancelScanButton_Click" />
                 </StackPanel>
             </Border>
-        </Grid>
+            </Grid>
+        </Popup>
 
         <Popup x:Name="SettingsPopup" PlacementTarget="{Binding ElementName=ThemeToggleButton}"
                Placement="Bottom" HorizontalOffset="-390" VerticalOffset="6"
                AllowsTransparency="True" PopupAnimation="Fade" StaysOpen="True">
             <Border x:Name="SettingsPopupHost" Width="480" Padding="2"
                     Background="{DynamicResource PanelBackgroundBrush}"
-                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" />
+                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" />
+        </Popup>
+
+        <Popup x:Name="PrintPresetPopup" PlacementTarget="{Binding ElementName=RootGrid}"
+               Placement="Center" AllowsTransparency="True" PopupAnimation="Fade" StaysOpen="True">
+            <Border x:Name="PrintPresetPopupHost" Width="380" Padding="20" Background="{DynamicResource PanelBackgroundBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="9">
+                <StackPanel>
+                    <TextBlock Text="Select copy to Print" FontSize="20" FontWeight="SemiBold"
+                               HorizontalAlignment="Center" Margin="0,0,0,16" />
+                    <UniformGrid Columns="1" Rows="5">
+                        <Button x:Name="Copy1Button" Content="Copy 1" Tag="0"
+                                Style="{StaticResource PrintButtonStyle}" Height="46" Margin="0,0,0,9"
+                                Click="PrintPresetButton_Click"
+                                PreviewMouseRightButtonUp="PrintPresetButton_PreviewMouseRightButtonUp" />
+                        <Button x:Name="Copy2Button" Content="Copy 2" Tag="1"
+                                Style="{StaticResource PrintButtonStyle}" Height="46" Margin="0,0,0,9"
+                                Click="PrintPresetButton_Click"
+                                PreviewMouseRightButtonUp="PrintPresetButton_PreviewMouseRightButtonUp" />
+                        <Button x:Name="Copy3Button" Content="Copy 3" Tag="2"
+                                Style="{StaticResource PrintButtonStyle}" Height="46" Margin="0,0,0,9"
+                                Click="PrintPresetButton_Click"
+                                PreviewMouseRightButtonUp="PrintPresetButton_PreviewMouseRightButtonUp" />
+                        <Button x:Name="Copy4Button" Content="Copy 4" Tag="3"
+                                Style="{StaticResource PrintButtonStyle}" Height="46" Margin="0,0,0,9"
+                                Click="PrintPresetButton_Click"
+                                PreviewMouseRightButtonUp="PrintPresetButton_PreviewMouseRightButtonUp" />
+                        <Button x:Name="Copy5Button" Content="Copy 5" Tag="4"
+                                Style="{StaticResource PrintButtonStyle}" Height="46"
+                                Click="PrintPresetButton_Click"
+                                PreviewMouseRightButtonUp="PrintPresetButton_PreviewMouseRightButtonUp" />
+                    </UniformGrid>
+                </StackPanel>
+            </Border>
         </Popup>
     </Grid>
 </Window>
