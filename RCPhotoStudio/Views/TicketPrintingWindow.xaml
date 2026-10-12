@@ -80,6 +80,56 @@
                                 BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
                                 CornerRadius="7">
                             <StackPanel>
+                                <TextBlock Text="Image layout" FontSize="12" FontWeight="SemiBold"/>
+                                <Grid Margin="0,5,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="7"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="7"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="30"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Text="Sides (in)" FontSize="10"/>
+                                    <TextBlock Grid.Column="2" Text="Top (in)" FontSize="10"/>
+                                    <TextBlock Grid.Column="4" Text="Gap (in)" FontSize="10"/>
+                                    <TextBox x:Name="SideMarginBox" Grid.Row="1" Text="0"
+                                             Margin="0,3,0,0" TextAlignment="Center"
+                                             VerticalContentAlignment="Center"
+                                             TextChanged="TicketLayout_Changed"/>
+                                    <TextBox x:Name="TopMarginBox" Grid.Row="1" Grid.Column="2" Text="0"
+                                             Margin="0,3,0,0" TextAlignment="Center"
+                                             VerticalContentAlignment="Center"
+                                             TextChanged="TicketLayout_Changed"/>
+                                    <TextBox x:Name="ImageGapBox" Grid.Row="1" Grid.Column="4" Text="0"
+                                             Margin="0,3,0,0" TextAlignment="Center"
+                                             VerticalContentAlignment="Center"
+                                             TextChanged="TicketLayout_Changed"/>
+                                </Grid>
+                                <CheckBox x:Name="AutoRotateToFillBox"
+                                          Content="Auto-rotate to fill remaining space"
+                                          IsChecked="True" Margin="0,6,0,0" FontSize="10"
+                                          Checked="AutoRotateToFill_Changed"
+                                          Unchecked="AutoRotateToFill_Changed"/>
+                                <CheckBox x:Name="PrintTicketBordersBox"
+                                          Content="Print border around each ticket"
+                                          IsChecked="False" Margin="0,4,0,0" FontSize="10"
+                                          Checked="PrintTicketBorders_Changed"
+                                          Unchecked="PrintTicketBorders_Changed"/>
+                                <TextBlock x:Name="LayoutStatusText" Margin="0,4,0,0" FontSize="9"
+                                           TextWrapping="Wrap"
+                                           Foreground="{DynamicResource MutedTextBrush}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Margin="0,6,0,0" Padding="9"
+                                Background="{DynamicResource SurfaceAltBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                CornerRadius="7">
+                            <StackPanel>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -140,7 +190,10 @@
                                                FontSize="10" VerticalAlignment="Center"
                                                Foreground="{DynamicResource MutedTextBrush}"/>
                                 </Grid>
-                                <StackPanel x:Name="NumberRangePanel" Margin="0,5,0,0" IsEnabled="False">
+                                <TextBlock x:Name="PageCapacityText" Text="Images per page: --"
+                                           Margin="0,3,0,0" FontSize="10"
+                                           Foreground="{DynamicResource MutedTextBrush}"/>
+                                <StackPanel x:Name="NumberRangePanel" Margin="0,4,0,0" IsEnabled="False">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
@@ -162,6 +215,7 @@
                                         <TextBox x:Name="EndNumberBox" Grid.Row="1" Grid.Column="2"
                                                  Margin="0,3,0,0" TextAlignment="Center"
                                                  VerticalContentAlignment="Center"
+                                                 ToolTip="Maximum 9,999 duplicated images"
                                                  PreviewTextInput="NumberRange_PreviewTextInput"
                                                  DataObject.Pasting="NumberRange_Pasting"
                                                  TextChanged="NumberRange_Changed"/>

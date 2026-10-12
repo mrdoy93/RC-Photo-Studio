@@ -15,6 +15,8 @@ namespace RCPhotoStudio.Services
     public static class PdfExportService
     {
         private const int ExportDpi = 300;
+        private const int MaximumImageCopies = 9999;
+        private const float TicketBorderWidthPixels = 0.10f;
 
         public static void Save(string path, PrintLayout layout, bool showCutGuides,
             bool showPictureBorders)
@@ -31,7 +33,9 @@ namespace RCPhotoStudio.Services
         public static void SaveImagePreview(string path, string imagePath,
             double paperWidthMm, double paperHeightMm,
             double ticketWidthMm, double ticketHeightMm,
-            IList<TicketNumberBoxSettings> numberingBoxes, int copyCount = 1)
+            IList<TicketNumberBoxSettings> numberingBoxes, int copyCount = 1,
+            double sideMarginMm = 0, double imageGapMm = 0, double topMarginMm = 0,
+            bool autoRotateToFill = false, bool printTicketBorders = false)
         {
             if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("A PDF path is required.", "path");
             if (string.IsNullOrWhiteSpace(imagePath) || !File.Exists(imagePath))
@@ -40,31 +44,31 @@ namespace RCPhotoStudio.Services
                 throw new ArgumentException("The paper size is invalid.");
             if (ticketWidthMm <= 0 || ticketHeightMm <= 0)
                 throw new ArgumentException("The ticket size is invalid.");
+            if (sideMarginMm < 0 || imageGapMm < 0 || topMarginMm < 0)
+                throw new ArgumentException("The image spacing is invalid.");
 
-            copyCount = Math.Max(1, copyCount);
-            var baseNumber = numberingBoxes == null
-                ? ""
-                : numberingBoxes.Select(settings => settings.TextValue)
-                    .FirstOrDefault(value => !string.IsNullOrEmpty(value)) ?? "";
-            copyCount = LimitCopyCountToNumberWidth(baseNumber, copyCount);
-            var columns = Math.Max(1,
-                (int)Math.Floor(paperWidthMm / ticketWidthMm + 0.000001));
-            var rows = Math.Max(1,
-                (int)Math.Floor(paperHeightMm / ticketHeightMm + 0.000001));
-            var copiesPerPage = Math.Max(1, columns * rows);
+            copyCount = Math.Max(1, Math.Min(copyCount, MaximumImageCopies));
+            var slots = CreateImagePreviewSlots(paperWidthMm, paperHeightMm,
+                ticketWidthMm, ticketHeightMm, sideMarginMm, topMarginMm,
+                imageGapMm, autoRotateToFill);
+            var copiesPerPage = Math.Max(1, slots.Count);
             var pageCount = Math.Max(1,
                 (int)Math.Ceiling(copyCount / (double)copiesPerPage));
             var pages = new List<PdfPageImage>();
             for (var pageIndex = 0; pageIndex < pageCount; pageIndex++)
                 pages.Add(RenderImagePreviewPage(imagePath, paperWidthMm, paperHeightMm,
-                    ticketWidthMm, ticketHeightMm, numberingBoxes, copyCount, pageIndex));
+                    ticketWidthMm, ticketHeightMm, numberingBoxes, copyCount, pageIndex,
+                    sideMarginMm, imageGapMm, topMarginMm, autoRotateToFill,
+                    printTicketBorders));
             WritePdf(path, pages);
         }
 
         private static PdfPageImage RenderImagePreviewPage(string imagePath,
             double paperWidthMm, double paperHeightMm,
             double ticketWidthMm, double ticketHeightMm,
-            IList<TicketNumberBoxSettings> numberingBoxes, int copyCount, int pageIndex)
+            IList<TicketNumberBoxSettings> numberingBoxes, int copyCount, int pageIndex,
+            double sideMarginMm, double imageGapMm, double topMarginMm,
+            bool autoRotateToFill, bool printTicketBorders)
         {
             var pixelWidth = Math.Max(1, (int)Math.Ceiling(paperWidthMm / 25.4 * ExportDpi));
             var pixelHeight = Math.Max(1, (int)Math.Ceiling(paperHeightMm / 25.4 * ExportDpi));
@@ -82,11 +86,10 @@ namespace RCPhotoStudio.Services
 
                     var drawWidth = (float)(ticketWidthMm / 25.4 * ExportDpi);
                     var drawHeight = (float)(ticketHeightMm / 25.4 * ExportDpi);
-                    var columns = Math.Max(1,
-                        (int)Math.Floor(paperWidthMm / ticketWidthMm + 0.000001));
-                    var rows = Math.Max(1,
-                        (int)Math.Floor(paperHeightMm / ticketHeightMm + 0.000001));
-                    var copiesPerPage = Math.Max(1, columns * rows);
+                    var slots = CreateImagePreviewSlots(paperWidthMm, paperHeightMm,
+                        ticketWidthMm, ticketHeightMm, sideMarginMm, topMarginMm,
+                        imageGapMm, autoRotateToFill);
+                    var copiesPerPage = Math.Max(1, slots.Count);
                     var firstCopyIndex = pageIndex * copiesPerPage;
                     var copiesOnPage = Math.Max(0,
                         Math.Min(copiesPerPage, copyCount - firstCopyIndex));
@@ -98,19 +101,114 @@ namespace RCPhotoStudio.Services
                     for (var localIndex = 0; localIndex < copiesOnPage; localIndex++)
                     {
                         var copyIndex = firstCopyIndex + localIndex;
-                        var destination = new RectangleF(
-                            (localIndex % columns) * drawWidth,
-                            (localIndex / columns) * drawHeight,
-                            drawWidth,
-                            drawHeight);
-                        graphics.DrawImage(image, destination);
-                        DrawNumberingBoxes(graphics, destination, numberingBoxes,
-                            IncrementNumericText(baseNumber, copyIndex));
+                        var slot = slots[localIndex];
+                        var state = graphics.Save();
+                        try
+                        {
+                            var left = (float)(slot.Xmm / 25.4 * ExportDpi);
+                            var top = (float)(slot.Ymm / 25.4 * ExportDpi);
+                            graphics.TranslateTransform(
+                                left + (slot.IsRotated ? drawHeight : 0), top);
+                            if (slot.IsRotated) graphics.RotateTransform(90);
+                            var destination = new RectangleF(0, 0, drawWidth, drawHeight);
+                            graphics.DrawImage(image, destination);
+                            DrawNumberingBoxes(graphics, destination, numberingBoxes,
+                                IncrementNumericText(baseNumber, copyIndex));
+                            if (printTicketBorders)
+                            {
+                                using (var pen = new Pen(Color.Black, TicketBorderWidthPixels))
+                                {
+                                    pen.Alignment = PenAlignment.Inset;
+                                    graphics.DrawRectangle(pen, destination.X, destination.Y,
+                                        destination.Width, destination.Height);
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            graphics.Restore(state);
+                        }
                     }
                 }
 
                 return CreatePdfPageImage(bitmap, paperWidthMm, paperHeightMm);
             }
+        }
+
+        private sealed class ImagePreviewSlot
+        {
+            public double Xmm { get; set; }
+            public double Ymm { get; set; }
+            public bool IsRotated { get; set; }
+        }
+
+        private static IList<ImagePreviewSlot> CreateImagePreviewSlots(
+            double paperWidthMm, double paperHeightMm,
+            double ticketWidthMm, double ticketHeightMm,
+            double sideMarginMm, double topMarginMm, double imageGapMm,
+            bool autoRotateToFill)
+        {
+            var slots = new List<ImagePreviewSlot>();
+            var availableWidth = Math.Max(0, paperWidthMm - sideMarginMm * 2);
+            var availableHeight = Math.Max(0, paperHeightMm - topMarginMm);
+            var columns = GetFitCount(availableWidth, ticketWidthMm, imageGapMm);
+            var rows = GetFitCount(availableHeight, ticketHeightMm, imageGapMm);
+            if (columns == 0 || rows == 0)
+            {
+                slots.Add(new ImagePreviewSlot { Xmm = sideMarginMm, Ymm = topMarginMm });
+                return slots;
+            }
+
+            for (var row = 0; row < rows; row++)
+                for (var column = 0; column < columns; column++)
+                    slots.Add(new ImagePreviewSlot
+                    {
+                        Xmm = sideMarginMm + column * (ticketWidthMm + imageGapMm),
+                        Ymm = topMarginMm + row * (ticketHeightMm + imageGapMm)
+                    });
+
+            if (!autoRotateToFill || Math.Abs(ticketWidthMm - ticketHeightMm) < 0.000001)
+                return slots;
+
+            var usedWidth = columns * ticketWidthMm + Math.Max(0, columns - 1) * imageGapMm;
+            var usedHeight = rows * ticketHeightMm + Math.Max(0, rows - 1) * imageGapMm;
+            var rotatedWidth = ticketHeightMm;
+            var rotatedHeight = ticketWidthMm;
+
+            var bottomY = topMarginMm + usedHeight + imageGapMm;
+            var bottomHeight = availableHeight - usedHeight - imageGapMm;
+            var bottomColumns = GetFitCount(availableWidth, rotatedWidth, imageGapMm);
+            var bottomRows = GetFitCount(bottomHeight, rotatedHeight, imageGapMm);
+            for (var row = 0; row < bottomRows; row++)
+                for (var column = 0; column < bottomColumns; column++)
+                    slots.Add(new ImagePreviewSlot
+                    {
+                        Xmm = sideMarginMm + column * (rotatedWidth + imageGapMm),
+                        Ymm = bottomY + row * (rotatedHeight + imageGapMm),
+                        IsRotated = true
+                    });
+
+            var rightX = sideMarginMm + usedWidth + imageGapMm;
+            var rightWidth = availableWidth - usedWidth - imageGapMm;
+            var rightColumns = GetFitCount(rightWidth, rotatedWidth, imageGapMm);
+            var rightRows = GetFitCount(usedHeight, rotatedHeight, imageGapMm);
+            for (var row = 0; row < rightRows; row++)
+                for (var column = 0; column < rightColumns; column++)
+                    slots.Add(new ImagePreviewSlot
+                    {
+                        Xmm = rightX + column * (rotatedWidth + imageGapMm),
+                        Ymm = topMarginMm + row * (rotatedHeight + imageGapMm),
+                        IsRotated = true
+                    });
+
+            return slots;
+        }
+
+        private static int GetFitCount(double availableSize, double itemSize, double gap)
+        {
+            if (availableSize + 0.000001 < itemSize || itemSize <= 0) return 0;
+            return Math.Max(0, (int)Math.Floor(
+                (availableSize + gap) / (itemSize + gap) + 0.000001));
         }
 
         private static void DrawNumberingBoxes(Graphics graphics, RectangleF ticketBounds,
@@ -179,53 +277,6 @@ namespace RCPhotoStudio.Services
             return carry > 0
                 ? carry.ToString(CultureInfo.InvariantCulture) + new string(digits)
                 : new string(digits);
-        }
-
-        private static int LimitCopyCountToNumberWidth(string baseNumber, int copyCount)
-        {
-            if (string.IsNullOrEmpty(baseNumber) ||
-                baseNumber.Any(character => character < '0' || character > '9'))
-                return copyCount;
-
-            var maximumNumber = new string('9', baseNumber.Length);
-            var maximumCopies = GetCopyCountForRange(baseNumber, maximumNumber);
-            return Math.Max(1, Math.Min(copyCount, maximumCopies));
-        }
-
-        private static int GetCopyCountForRange(string startNumber, string endNumber)
-        {
-            if (string.IsNullOrEmpty(startNumber) || string.IsNullOrEmpty(endNumber) ||
-                startNumber.Length != endNumber.Length ||
-                string.CompareOrdinal(startNumber, endNumber) > 0)
-                return 0;
-
-            var differenceDigits = new int[startNumber.Length];
-            var borrow = 0;
-            for (var index = startNumber.Length - 1; index >= 0; index--)
-            {
-                var difference = (endNumber[index] - '0') -
-                                 (startNumber[index] - '0') - borrow;
-                if (difference < 0)
-                {
-                    difference += 10;
-                    borrow = 1;
-                }
-                else
-                {
-                    borrow = 0;
-                }
-                differenceDigits[index] = difference;
-            }
-
-            var maximumDifference = int.MaxValue - 1;
-            var totalDifference = 0;
-            foreach (var digit in differenceDigits)
-            {
-                if (totalDifference > (maximumDifference - digit) / 10)
-                    return int.MaxValue;
-                totalDifference = totalDifference * 10 + digit;
-            }
-            return totalDifference + 1;
         }
 
         private static Color ParseColor(string value, Color fallback)

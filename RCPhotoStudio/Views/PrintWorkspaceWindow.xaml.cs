@@ -48,7 +48,7 @@ namespace RCPhotoStudio.Views
 
     public partial class PrintWorkspaceWindow : Window, INotifyPropertyChanged
     {
-        private const float OutputPictureBorderWidthPixels = 0.15f;
+        private const float OutputPictureBorderWidthPixels = 0.10f;
         private const double PvcCardWidthMm = 2.14 * 25.4;
         private const double PvcCardHeightMm = 3.39 * 25.4;
         private const double PvcCardCornerRadiusMm = 3.2;
@@ -57,7 +57,7 @@ namespace RCPhotoStudio.Views
         private const string SelectedPicturesScope = "Selected picture(s)";
         private const string AllPicturesScope = "All pictures";
         private const string NoPictureBorderOption = "Do not print";
-        private const string PrintPictureBorderOption = "Print border (0.15 px)";
+        private const string PrintPictureBorderOption = "Print border (0.10 px)";
         private readonly PhotoPackage _package;
         private PrintLayout _layout;
         private int _pageIndex;

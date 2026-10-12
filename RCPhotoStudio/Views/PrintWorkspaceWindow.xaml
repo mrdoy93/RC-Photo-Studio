@@ -126,7 +126,7 @@
                                       SelectionChanged="SelectedPhotoFit_Changed"/>
                             <StackPanel Grid.Row="2" VerticalAlignment="Center" Margin="0,0,8,0">
                                 <TextBlock Text="Picture border" FontSize="11" FontWeight="SemiBold"/>
-                                <TextBlock Text="Printed at 0.15 px" FontSize="9" Foreground="{DynamicResource MutedTextBrush}"/>
+                                <TextBlock Text="Printed at 0.10 px" FontSize="9" Foreground="{DynamicResource MutedTextBrush}"/>
                             </StackPanel>
                             <ComboBox x:Name="SelectedPictureBorderBox" Grid.Row="2" Grid.Column="1"
                                       SelectionChanged="SelectedPictureBorder_Changed"/>

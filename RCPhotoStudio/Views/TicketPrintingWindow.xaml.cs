@@ -20,6 +20,8 @@ namespace RCPhotoStudio.Views
         private const double MinimumPreviewZoom = 0.25;
         private const double MaximumPreviewZoom = 4.0;
         private const double PreviewZoomStep = 0.10;
+        private const int MaximumImageCopies = 9999;
+        private const double PrintedTicketBorderWidthPixels = 0.10;
         private string _imagePath;
         private PaperDefinition _customPaper;
         private double _ticketWidthInches = 5.5;
@@ -30,7 +32,19 @@ namespace RCPhotoStudio.Views
         private int _previewCopyCount = 1;
         private int _currentPageIndex;
         private double _previewZoom = 1.0;
+        private double _sideMarginInches;
+        private double _topMarginInches;
+        private double _imageGapInches;
+        private bool _autoRotateToFill = true;
+        private bool _printTicketBorders;
         private bool _updatingNumberRangeControls;
+
+        private sealed class TicketPageSlot
+        {
+            public double XInches { get; set; }
+            public double YInches { get; set; }
+            public bool IsRotated { get; set; }
+        }
 
         public TicketPrintingWindow()
         {
@@ -95,6 +109,76 @@ namespace RCPhotoStudio.Views
             return (double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value) ||
                     double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value)) &&
                    value > 0 && value <= 100;
+        }
+
+        private static bool TryReadSpacing(string text, out double value)
+        {
+            return (double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value) ||
+                    double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value)) &&
+                   value >= 0 && value <= 100;
+        }
+
+        private void TicketLayout_Changed(object sender, TextChangedEventArgs e)
+        {
+            if (!IsLoaded || SideMarginBox == null || TopMarginBox == null ||
+                ImageGapBox == null ||
+                LayoutStatusText == null)
+                return;
+
+            double sideMarginInches;
+            double topMarginInches;
+            double imageGapInches;
+            if (!TryReadSpacing(SideMarginBox.Text, out sideMarginInches) ||
+                !TryReadSpacing(TopMarginBox.Text, out topMarginInches) ||
+                !TryReadSpacing(ImageGapBox.Text, out imageGapInches))
+            {
+                LayoutStatusText.Text = "Enter values from 0 to 100 inches.";
+                return;
+            }
+
+            var paper = PaperSizeBox.SelectedItem as PaperDefinition;
+            if (paper != null)
+            {
+                double paperWidthMm;
+                double paperHeightMm;
+                GetOrientedPaperSize(paper, out paperWidthMm, out paperHeightMm);
+                var availableWidthInches = paperWidthMm / MillimetersPerInch - sideMarginInches * 2;
+                var availableHeightInches = paperHeightMm / MillimetersPerInch - topMarginInches;
+                if (availableWidthInches + 0.000001 < _ticketWidthInches)
+                {
+                    LayoutStatusText.Text = "Side margins leave too little width for the ticket.";
+                    return;
+                }
+                if (availableHeightInches + 0.000001 < _ticketHeightInches)
+                {
+                    LayoutStatusText.Text = "Top margin leaves too little height for the ticket.";
+                    return;
+                }
+            }
+
+            LayoutStatusText.Text = "Preview updated automatically.";
+            _sideMarginInches = sideMarginInches;
+            _topMarginInches = topMarginInches;
+            _imageGapInches = imageGapInches;
+            _currentPageIndex = 0;
+            UpdateDuplicateControls();
+            UpdateTicketPreview();
+        }
+
+        private void AutoRotateToFill_Changed(object sender, RoutedEventArgs e)
+        {
+            if (!IsLoaded || AutoRotateToFillBox == null) return;
+            _autoRotateToFill = AutoRotateToFillBox.IsChecked == true;
+            _currentPageIndex = 0;
+            UpdateDuplicateControls();
+            UpdateTicketPreview();
+        }
+
+        private void PrintTicketBorders_Changed(object sender, RoutedEventArgs e)
+        {
+            if (!IsLoaded || PrintTicketBordersBox == null) return;
+            _printTicketBorders = PrintTicketBordersBox.IsChecked == true;
+            UpdateTicketPreview();
         }
 
         private void ApplyPaperPreview(PaperDefinition paper)
@@ -269,8 +353,8 @@ namespace RCPhotoStudio.Views
 
             var ticketWidth = _ticketWidthInches * PreviewUnitsPerInch;
             var ticketHeight = _ticketHeightInches * PreviewUnitsPerInch;
-            var columns = GetCopiesPerRow();
-            var copiesPerPage = GetCopyCapacity();
+            var slots = GetTicketPageSlots();
+            var copiesPerPage = Math.Max(1, slots.Count);
             var firstCopyIndex = pageIndex * copiesPerPage;
             var copiesOnPage = Math.Max(0,
                 Math.Min(copiesPerPage, _previewCopyCount - firstCopyIndex));
@@ -281,10 +365,105 @@ namespace RCPhotoStudio.Views
                 var copyIndex = firstCopyIndex + localIndex;
                 var ticket = CreateTicketPreviewVisual(
                     IncrementNumericText(baseNumber, copyIndex), ticketWidth, ticketHeight);
-                Canvas.SetLeft(ticket, (localIndex % columns) * ticketWidth);
-                Canvas.SetTop(ticket, (localIndex / columns) * ticketHeight);
+                var slot = slots[localIndex];
+                if (slot.IsRotated)
+                {
+                    ticket.RenderTransform = new RotateTransform(90);
+                    Canvas.SetLeft(ticket,
+                        slot.XInches * PreviewUnitsPerInch + ticketHeight);
+                }
+                else
+                {
+                    Canvas.SetLeft(ticket, slot.XInches * PreviewUnitsPerInch);
+                }
+                Canvas.SetTop(ticket, slot.YInches * PreviewUnitsPerInch);
                 targetCanvas.Children.Add(ticket);
             }
+        }
+
+        private IList<TicketPageSlot> GetTicketPageSlots()
+        {
+            var slots = new List<TicketPageSlot>();
+            var paper = PaperSizeBox.SelectedItem as PaperDefinition;
+            if (paper == null || _ticketWidthInches <= 0 || _ticketHeightInches <= 0)
+                return slots;
+
+            double paperWidthMm;
+            double paperHeightMm;
+            GetOrientedPaperSize(paper, out paperWidthMm, out paperHeightMm);
+            var availableWidth = Math.Max(0,
+                paperWidthMm / MillimetersPerInch - _sideMarginInches * 2);
+            var availableHeight = Math.Max(0,
+                paperHeightMm / MillimetersPerInch - _topMarginInches);
+            var columns = GetFitCount(availableWidth, _ticketWidthInches, _imageGapInches);
+            var rows = GetFitCount(availableHeight, _ticketHeightInches, _imageGapInches);
+            if (columns == 0 || rows == 0)
+            {
+                slots.Add(new TicketPageSlot
+                {
+                    XInches = _sideMarginInches,
+                    YInches = _topMarginInches
+                });
+                return slots;
+            }
+
+            for (var row = 0; row < rows; row++)
+                for (var column = 0; column < columns; column++)
+                    slots.Add(new TicketPageSlot
+                    {
+                        XInches = _sideMarginInches +
+                            column * (_ticketWidthInches + _imageGapInches),
+                        YInches = _topMarginInches +
+                            row * (_ticketHeightInches + _imageGapInches)
+                    });
+
+            if (!_autoRotateToFill ||
+                Math.Abs(_ticketWidthInches - _ticketHeightInches) < 0.000001)
+                return slots;
+
+            var usedWidth = columns * _ticketWidthInches +
+                            Math.Max(0, columns - 1) * _imageGapInches;
+            var usedHeight = rows * _ticketHeightInches +
+                             Math.Max(0, rows - 1) * _imageGapInches;
+            var rotatedWidth = _ticketHeightInches;
+            var rotatedHeight = _ticketWidthInches;
+
+            var bottomY = _topMarginInches + usedHeight + _imageGapInches;
+            var bottomHeight = availableHeight - usedHeight - _imageGapInches;
+            var bottomColumns = GetFitCount(availableWidth, rotatedWidth, _imageGapInches);
+            var bottomRows = GetFitCount(bottomHeight, rotatedHeight, _imageGapInches);
+            for (var row = 0; row < bottomRows; row++)
+                for (var column = 0; column < bottomColumns; column++)
+                    slots.Add(new TicketPageSlot
+                    {
+                        XInches = _sideMarginInches +
+                            column * (rotatedWidth + _imageGapInches),
+                        YInches = bottomY + row * (rotatedHeight + _imageGapInches),
+                        IsRotated = true
+                    });
+
+            var rightX = _sideMarginInches + usedWidth + _imageGapInches;
+            var rightWidth = availableWidth - usedWidth - _imageGapInches;
+            var rightColumns = GetFitCount(rightWidth, rotatedWidth, _imageGapInches);
+            var rightRows = GetFitCount(usedHeight, rotatedHeight, _imageGapInches);
+            for (var row = 0; row < rightRows; row++)
+                for (var column = 0; column < rightColumns; column++)
+                    slots.Add(new TicketPageSlot
+                    {
+                        XInches = rightX + column * (rotatedWidth + _imageGapInches),
+                        YInches = _topMarginInches +
+                            row * (rotatedHeight + _imageGapInches),
+                        IsRotated = true
+                    });
+
+            return slots;
+        }
+
+        private static int GetFitCount(double availableSize, double itemSize, double gap)
+        {
+            if (availableSize + 0.000001 < itemSize || itemSize <= 0) return 0;
+            return Math.Max(0, (int)Math.Floor(
+                (availableSize + gap) / (itemSize + gap) + 0.000001));
         }
 
         private Grid CreateTicketPreviewVisual(string numberText, double ticketWidth, double ticketHeight)
@@ -344,17 +523,36 @@ namespace RCPhotoStudio.Views
                 numberingCanvas.Children.Add(border);
             }
             ticket.Children.Add(numberingCanvas);
+            if (_printTicketBorders)
+            {
+                ticket.Children.Add(new Border
+                {
+                    BorderBrush = Brushes.Black,
+                    BorderThickness = new Thickness(
+                        PrintedTicketBorderWidthPixels * PreviewUnitsPerInch / 96.0),
+                    IsHitTestVisible = false
+                });
+            }
             return ticket;
         }
 
         private void UpdateDuplicateControls()
         {
             var hasImage = _previewImageSource != null;
-            var maximumCopies = GetMaximumCopiesForNumberWidth();
-            _previewCopyCount = Math.Max(1, Math.Min(_previewCopyCount, maximumCopies));
+            _previewCopyCount = Math.Max(1, Math.Min(_previewCopyCount, MaximumImageCopies));
             NumberRangePanel.IsEnabled = hasImage && _numberingBoxes.Count > 0;
             var baseNumber = GetBaseNumberText();
             UpdateNumberRangeControls(baseNumber);
+            UpdatePageCapacityText();
+        }
+
+        private void UpdatePageCapacityText()
+        {
+            if (PageCapacityText == null) return;
+            PageCapacityText.Text = _previewImageSource == null
+                ? "Images per page: --"
+                : string.Format(CultureInfo.CurrentCulture, "Images per page: {0:N0}",
+                    GetCopyCapacity());
         }
 
         private void NumberRange_PreviewTextInput(object sender, TextCompositionEventArgs e)
@@ -387,8 +585,7 @@ namespace RCPhotoStudio.Views
             var endNumber = (EndNumberBox.Text ?? "").Trim();
             if (string.IsNullOrEmpty(startNumber) || string.IsNullOrEmpty(endNumber) ||
                 startNumber.Any(character => character < '0' || character > '9') ||
-                endNumber.Any(character => character < '0' || character > '9') ||
-                startNumber.Length != endNumber.Length)
+                endNumber.Any(character => character < '0' || character > '9'))
                 return;
 
             var copyCount = GetCopyCountForRange(startNumber, endNumber);
@@ -398,23 +595,25 @@ namespace RCPhotoStudio.Views
                 box.TextValue = startNumber;
             _previewCopyCount = copyCount;
             _currentPageIndex = 0;
-            UpdateDuplicateControls();
             UpdateTicketPreview();
         }
 
         private static int GetCopyCountForRange(string startNumber, string endNumber)
         {
-            if (string.IsNullOrEmpty(startNumber) || string.IsNullOrEmpty(endNumber) ||
-                startNumber.Length != endNumber.Length ||
-                string.CompareOrdinal(startNumber, endNumber) > 0)
+            if (string.IsNullOrEmpty(startNumber) || string.IsNullOrEmpty(endNumber))
                 return 0;
 
-            var differenceDigits = new int[startNumber.Length];
+            var numberLength = Math.Max(startNumber.Length, endNumber.Length);
+            var paddedStart = startNumber.PadLeft(numberLength, '0');
+            var paddedEnd = endNumber.PadLeft(numberLength, '0');
+            if (string.CompareOrdinal(paddedStart, paddedEnd) > 0) return 0;
+
+            var differenceDigits = new int[numberLength];
             var borrow = 0;
-            for (var index = startNumber.Length - 1; index >= 0; index--)
+            for (var index = numberLength - 1; index >= 0; index--)
             {
-                var difference = (endNumber[index] - '0') -
-                                 (startNumber[index] - '0') - borrow;
+                var difference = (paddedEnd[index] - '0') -
+                                 (paddedStart[index] - '0') - borrow;
                 if (difference < 0)
                 {
                     difference += 10;
@@ -427,15 +626,15 @@ namespace RCPhotoStudio.Views
                 differenceDigits[index] = difference;
             }
 
-            var maximumDifference = int.MaxValue - 1;
+            var maximumDifference = MaximumImageCopies - 1;
             var totalDifference = 0;
             foreach (var digit in differenceDigits)
             {
                 if (totalDifference > (maximumDifference - digit) / 10)
-                    return int.MaxValue;
+                    return MaximumImageCopies;
                 totalDifference = totalDifference * 10 + digit;
             }
-            return totalDifference + 1;
+            return Math.Min(MaximumImageCopies, totalDifference + 1);
         }
 
         private void UpdateNumberRangeControls(string baseNumber)
@@ -462,37 +661,9 @@ namespace RCPhotoStudio.Views
                 .FirstOrDefault(value => !string.IsNullOrEmpty(value)) ?? "";
         }
 
-        private int GetMaximumCopiesForNumberWidth()
-        {
-            var baseNumber = GetBaseNumberText();
-            if (string.IsNullOrEmpty(baseNumber) ||
-                baseNumber.Any(character => character < '0' || character > '9'))
-                return int.MaxValue;
-            return GetCopyCountForRange(baseNumber, new string('9', baseNumber.Length));
-        }
-
-        private int GetCopiesPerRow()
-        {
-            var paper = PaperSizeBox.SelectedItem as PaperDefinition;
-            if (paper == null || _ticketWidthInches <= 0) return 1;
-            double paperWidthMm;
-            double paperHeightMm;
-            GetOrientedPaperSize(paper, out paperWidthMm, out paperHeightMm);
-            return Math.Max(1, (int)Math.Floor(
-                paperWidthMm / (_ticketWidthInches * MillimetersPerInch) + 0.000001));
-        }
-
         private int GetCopyCapacity()
         {
-            var paper = PaperSizeBox.SelectedItem as PaperDefinition;
-            if (paper == null || _ticketWidthInches <= 0 || _ticketHeightInches <= 0) return 1;
-            double paperWidthMm;
-            double paperHeightMm;
-            GetOrientedPaperSize(paper, out paperWidthMm, out paperHeightMm);
-            var columns = GetCopiesPerRow();
-            var rows = Math.Max(1, (int)Math.Floor(
-                paperHeightMm / (_ticketHeightInches * MillimetersPerInch) + 0.000001));
-            return Math.Max(1, Math.Min(100, columns * rows));
+            return Math.Max(1, Math.Min(MaximumImageCopies, GetTicketPageSlots().Count));
         }
 
         private int GetPageCount()
@@ -682,7 +853,11 @@ namespace RCPhotoStudio.Views
                     paperWidthMm, paperHeightMm,
                     _ticketWidthInches * MillimetersPerInch,
                     _ticketHeightInches * MillimetersPerInch,
-                    _numberingBoxes, _previewCopyCount);
+                    _numberingBoxes, _previewCopyCount,
+                    _sideMarginInches * MillimetersPerInch,
+                    _imageGapInches * MillimetersPerInch,
+                    _topMarginInches * MillimetersPerInch,
+                    _autoRotateToFill, _printTicketBorders);
                 MessageBox.Show(this, "PDF saved successfully.", "Save PDF",
                     MessageBoxButton.OK, MessageBoxImage.Information);
             }
