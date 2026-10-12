@@ -14,6 +14,7 @@
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource WindowBackgroundBrush}"
         PreviewMouseDown="Window_PreviewMouseDown"
+        PreviewKeyDown="Window_PreviewKeyDown"
         Deactivated="Window_Deactivated"
         Closing="Window_Closing">
     <Grid x:Name="RootGrid">
@@ -150,17 +151,25 @@
                         </StackPanel>
                     </Grid>
 
-                    <TextBlock Text="Automatic JPG Folder" Style="{StaticResource FieldLabelStyle}" />
-                    <Grid Margin="0,0,0,4">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <TextBox x:Name="SaveLocationText" Height="34" Padding="8,5" IsReadOnly="True"
-                                 VerticalContentAlignment="Center" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
-                        <Button Grid.Column="1" Content="Browse" Margin="6,0,0,0"
-                                Style="{StaticResource SecondaryButtonStyle}" Click="BrowseSaveLocationButton_Click" />
-                    </Grid>
+                    <StackPanel Margin="0,2,0,4">
+                        <TextBlock Text="Automatic JPG Folder" Style="{StaticResource FieldLabelStyle}"
+                                   Margin="0,0,0,7" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="0" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Border Height="34" Padding="9,0" CornerRadius="5"
+                                    Background="{DynamicResource ControlBackgroundBrush}"
+                                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
+                                <TextBlock x:Name="SaveLocationText" VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                                           ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+                            </Border>
+                            <Button Grid.Column="1" Content="Browse" Margin="6,0,0,0"
+                                    Style="{StaticResource SecondaryButtonStyle}" Click="BrowseSaveLocationButton_Click" />
+                        </Grid>
+                    </StackPanel>
 
                     </StackPanel>
                     <StackPanel x:Name="PrintSettingsPanel" Visibility="Collapsed">
@@ -400,7 +409,8 @@
                             BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1">
                         <StackPanel Orientation="Horizontal">
                             <Button x:Name="ScanButton" Content="Scan Next Page" Style="{StaticResource ScanButtonStyle}"
-                                    Margin="0,0,6,0" Click="ScanButton_Click" />
+                                    Margin="0,0,6,0" Click="ScanButton_Click"
+                                    MouseEnter="ActionButton_MouseEnter" />
                             <Button x:Name="FinishButton" Content="Finish &amp; Combine PDF" Style="{StaticResource SecondaryButtonStyle}"
                                     Margin="0,0,6,0" Click="FinishButton_Click" />
                             <Button x:Name="SaveButton" Content="Save PDFs as ZIP" Style="{StaticResource SecondaryButtonStyle}"
@@ -411,12 +421,8 @@
             </Grid>
         </Border>
 
-        <Popup x:Name="ScanProgressOverlay" PlacementTarget="{Binding ElementName=RootGrid}"
-               Placement="Center" AllowsTransparency="True" PopupAnimation="Fade"
-               StaysOpen="True" Focusable="False">
-            <Grid Width="{Binding ActualWidth, ElementName=RootGrid}"
-                  Height="{Binding ActualHeight, ElementName=RootGrid}"
-                  Background="#72000000">
+        <Grid x:Name="ScanProgressOverlay" Grid.RowSpan="3" Panel.ZIndex="100"
+              Visibility="Collapsed" Background="#72000000">
             <Border Width="350" Padding="24" HorizontalAlignment="Center" VerticalAlignment="Center"
                     Background="{DynamicResource PanelBackgroundBrush}"
                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10">
@@ -444,8 +450,7 @@
                             Click="CancelScanButton_Click" />
                 </StackPanel>
             </Border>
-            </Grid>
-        </Popup>
+        </Grid>
 
         <Popup x:Name="SettingsPopup" PlacementTarget="{Binding ElementName=ThemeToggleButton}"
                Placement="Bottom" HorizontalOffset="-390" VerticalOffset="6"
@@ -455,9 +460,11 @@
                      BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" />
         </Popup>
 
-        <Popup x:Name="PrintPresetPopup" PlacementTarget="{Binding ElementName=RootGrid}"
-               Placement="Center" AllowsTransparency="True" PopupAnimation="Fade" StaysOpen="True">
-            <Border x:Name="PrintPresetPopupHost" Width="380" Padding="20" Background="{DynamicResource PanelBackgroundBrush}"
+        <Grid x:Name="PrintPresetPopup" Grid.RowSpan="3" Panel.ZIndex="50"
+              Visibility="Collapsed">
+            <Border x:Name="PrintPresetPopupHost" Width="380" Padding="20"
+                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Background="{DynamicResource PanelBackgroundBrush}"
                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="9">
                 <StackPanel>
                     <TextBlock Text="Select copy to Print" FontSize="20" FontWeight="SemiBold"
@@ -466,26 +473,31 @@
                         <Button x:Name="Copy1Button" Content="Copy 1" Tag="0"
                                 Style="{StaticResource PrintButtonStyle}" Height="46" Margin="0,0,0,9"
                                 Click="PrintPresetButton_Click"
+                                MouseEnter="ActionButton_MouseEnter"
                                 PreviewMouseRightButtonUp="PrintPresetButton_PreviewMouseRightButtonUp" />
                         <Button x:Name="Copy2Button" Content="Copy 2" Tag="1"
                                 Style="{StaticResource PrintButtonStyle}" Height="46" Margin="0,0,0,9"
                                 Click="PrintPresetButton_Click"
+                                MouseEnter="ActionButton_MouseEnter"
                                 PreviewMouseRightButtonUp="PrintPresetButton_PreviewMouseRightButtonUp" />
                         <Button x:Name="Copy3Button" Content="Copy 3" Tag="2"
                                 Style="{StaticResource PrintButtonStyle}" Height="46" Margin="0,0,0,9"
                                 Click="PrintPresetButton_Click"
+                                MouseEnter="ActionButton_MouseEnter"
                                 PreviewMouseRightButtonUp="PrintPresetButton_PreviewMouseRightButtonUp" />
                         <Button x:Name="Copy4Button" Content="Copy 4" Tag="3"
                                 Style="{StaticResource PrintButtonStyle}" Height="46" Margin="0,0,0,9"
                                 Click="PrintPresetButton_Click"
+                                MouseEnter="ActionButton_MouseEnter"
                                 PreviewMouseRightButtonUp="PrintPresetButton_PreviewMouseRightButtonUp" />
                         <Button x:Name="Copy5Button" Content="Copy 5" Tag="4"
                                 Style="{StaticResource PrintButtonStyle}" Height="46"
                                 Click="PrintPresetButton_Click"
+                                MouseEnter="ActionButton_MouseEnter"
                                 PreviewMouseRightButtonUp="PrintPresetButton_PreviewMouseRightButtonUp" />
                     </UniformGrid>
                 </StackPanel>
             </Border>
-        </Popup>
+        </Grid>
     </Grid>
 </Window>

@@ -12,6 +12,7 @@ using System.Windows.Media.Imaging;
 using Microsoft.Win32;
 using PrinterScanner.Models;
 using PrinterScanner.Services;
+using WpfKeyEventArgs = System.Windows.Input.KeyEventArgs;
 using WpfMouseEventArgs = System.Windows.Input.MouseEventArgs;
 using WpfPoint = System.Windows.Point;
 
@@ -35,6 +36,7 @@ public partial class MainWindow : Window
     private int _scanCapabilityRequest;
     private int? _activePrintPresetIndex;
     private PrintPresetPreferences? _printEditorOriginalSettings;
+    private System.Windows.Controls.Button? _lastSelectedActionButton;
 
     private const int PrintPresetCount = 5;
     private const double PreviewZoomStep = 0.25d;
@@ -125,6 +127,42 @@ public partial class MainWindow : Window
         await ScanPageAsync(replacePage: null);
     }
 
+    private void ActionButton_MouseEnter(object sender, WpfMouseEventArgs e)
+    {
+        if (sender is System.Windows.Controls.Button { IsEnabled: true } button)
+        {
+            _lastSelectedActionButton = button;
+            button.Focus();
+        }
+    }
+
+    private void Window_PreviewKeyDown(object sender, WpfKeyEventArgs e)
+    {
+        if (e.Key is not (Key.Enter or Key.Space))
+        {
+            return;
+        }
+
+        if (ReferenceEquals(e.OriginalSource, CancelScanButton))
+        {
+            return;
+        }
+
+        if (e.IsRepeat || _isBusy)
+        {
+            e.Handled = true;
+            return;
+        }
+
+        if (_lastSelectedActionButton is not { IsEnabled: true } button)
+        {
+            return;
+        }
+
+        e.Handled = true;
+        button.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent, button));
+    }
+
     private async Task ScanPageAsync(ScanPage? replacePage)
     {
         if (ScannerCombo.SelectedItem is not ScannerDevice scanner)
@@ -146,16 +184,18 @@ public partial class MainWindow : Window
             var progress = new Progress<int>(UpdateScannerAcquisitionProgress);
             await _scannerService.ScanAsync(scanner, options, rawPath, progress, cancellation.Token);
             cancellation.Token.ThrowIfCancellationRequested();
-            SetScanProgress(true, 80, "Processing the scanned image…");
+            SetScanProgress(true, 82, "Processing the scanned image…");
             SetStatus("Optimizing scanned page…", StatusKind.Working);
             await Task.Run(() => _imageService.ProcessScan(rawPath, processedPath, options.ColorMode), cancellation.Token);
             cancellation.Token.ThrowIfCancellationRequested();
-            SetScanProgress(true, 98, "Preparing the page preview…");
+            SetScanProgress(true, 92, "Preparing the page preview…");
 
             var page = new ScanPage(
                 processedPath,
                 _imageService.LoadThumbnail(processedPath),
                 options.ColorMode);
+
+            SetScanProgress(true, 95, "Adding the scanned page…");
 
             if (replacePage is not null)
             {
@@ -174,10 +214,11 @@ public partial class MainWindow : Window
 
             RenumberPages();
             UpdateDocumentState();
-            SetScanProgress(true, 100, "Scan complete");
-            await Task.Delay(120);
-            SetScanProgress(false);
+            SetScanProgress(true, 97, "Saving the JPEG copy…");
             var automaticJpegPath = await SaveAutomaticJpegCopyAsync(page);
+            SetScanProgress(true, 100, "Scan complete");
+            await Task.Delay(250);
+            SetScanProgress(false);
             SetStatus(
                 ContinuousScanCheck.IsChecked == true
                     ? $"Page scanned; JPG saved to {Path.GetDirectoryName(automaticJpegPath)}; ready for the next page"
@@ -322,13 +363,21 @@ public partial class MainWindow : Window
 
     private async void PrintPresetButton_Click(object sender, RoutedEventArgs e)
     {
-        if (!TryGetPresetIndex(sender, out var presetIndex) ||
-            !TryResolvePrintPreset(presetIndex, out var printer, out var printOptions))
+        try
         {
-            return;
-        }
+            if (!TryGetPresetIndex(sender, out var presetIndex) ||
+                !TryResolvePrintPreset(presetIndex, out var printer, out var printOptions))
+            {
+                return;
+            }
 
-        await PrintNowAsync(printer, printOptions, $"Copy {presetIndex + 1}");
+            await PrintNowAsync(printer, printOptions, $"Copy {presetIndex + 1}");
+        }
+        catch (Exception exception)
+        {
+            SetStatus("Copy could not start", StatusKind.Error);
+            ShowError(exception.Message);
+        }
     }
 
     private void PrintPresetButton_PreviewMouseRightButtonUp(object sender, MouseButtonEventArgs e)
@@ -357,6 +406,7 @@ public partial class MainWindow : Window
         var printDescription = DescribePrintOptions(printOptions);
         var rawPath = _tempSession.NewPath(".png");
         var processedPath = _tempSession.NewPath(".png");
+        var printProcessedPath = _tempSession.NewPath(".png");
         var cancellation = new CancellationTokenSource();
         _scanCancellation = cancellation;
 
@@ -365,29 +415,62 @@ public partial class MainWindow : Window
         try
         {
             var progress = new Progress<int>(UpdateScannerAcquisitionProgress);
-            await _scannerService.ScanAsync(scanner, options, rawPath, progress, cancellation.Token);
+            var acquisitionOptions = options with { ColorMode = ScanColorMode.Color };
+            await _scannerService.ScanAsync(
+                scanner,
+                acquisitionOptions,
+                rawPath,
+                progress,
+                cancellation.Token);
             cancellation.Token.ThrowIfCancellationRequested();
-            SetScanProgress(true, 80, "Processing the scanned image…");
+            SetScanProgress(true, 82, "Processing the scanned image…");
             SetStatus("Optimizing scanned page…", StatusKind.Working);
             await Task.Run(() => _imageService.ProcessScan(rawPath, processedPath, options.ColorMode), cancellation.Token);
             cancellation.Token.ThrowIfCancellationRequested();
 
-            var page = new ScanPage(
+            var printScanMode = printOptions.ColorMode switch
+            {
+                PrintColorMode.Grayscale => ScanColorMode.TrueGray,
+                PrintColorMode.BlackAndWhite => ScanColorMode.BlackAndWhite,
+                _ => ScanColorMode.Color
+            };
+            var pagePathForPrint = processedPath;
+            if (printScanMode != options.ColorMode)
+            {
+                SetScanProgress(true, 88, $"Optimizing the {printDescription} copy…");
+                await Task.Run(
+                    () => _imageService.ProcessScan(rawPath, printProcessedPath, printScanMode),
+                    cancellation.Token);
+                cancellation.Token.ThrowIfCancellationRequested();
+                pagePathForPrint = printProcessedPath;
+            }
+
+            SetScanProgress(true, 92, "Preparing the scanned page…");
+
+            var savedPage = new ScanPage(
                 processedPath,
                 _imageService.LoadThumbnail(processedPath),
                 options.ColorMode);
+            var printPage = pagePathForPrint == processedPath
+                ? savedPage
+                : new ScanPage(
+                    pagePathForPrint,
+                    _imageService.LoadThumbnail(pagePathForPrint),
+                    printScanMode);
 
-            SetScanProgress(true, 100, "Scan complete");
-            await Task.Delay(120);
+            SetScanProgress(true, 97, "Saving the JPEG copy…");
+            var automaticJpegPath = await SaveAutomaticJpegCopyAsync(savedPage);
+            SetScanProgress(true, 100, "Scan complete; sending to printer…");
+            await Task.Delay(250);
             SetScanProgress(false);
-            var automaticJpegPath = await SaveAutomaticJpegCopyAsync(page);
             SetStatus($"{presetName}: sending print job with {printDescription}…", StatusKind.Working);
-            await _printerService.PrintAsync(printer, [page], printOptions);
+            await _printerService.PrintAsync(printer, [printPage], printOptions);
             SetStatus($"{presetName} printed with {printDescription}; JPG saved to {Path.GetDirectoryName(automaticJpegPath)}", StatusKind.Success);
         }
         catch (OperationCanceledException)
         {
             TryDelete(processedPath);
+            TryDelete(printProcessedPath);
             SetStatus("Direct scan and print cancelled", StatusKind.Warning);
         }
         catch (Exception exception)
@@ -739,7 +822,7 @@ public partial class MainWindow : Window
 
     private void ScanSettingsButton_Click(object sender, RoutedEventArgs e)
     {
-        PrintPresetPopup.IsOpen = false;
+        PrintPresetPopup.Visibility = Visibility.Collapsed;
         ToggleScanSettingsPopup();
     }
 
@@ -750,14 +833,14 @@ public partial class MainWindow : Window
             CloseSettingsPopup();
         }
 
-        if (PrintPresetPopup.IsOpen)
+        if (PrintPresetPopup.Visibility == Visibility.Visible)
         {
-            PrintPresetPopup.IsOpen = false;
+            PrintPresetPopup.Visibility = Visibility.Collapsed;
             return;
         }
 
         CloseSettingsPopup();
-        PrintPresetPopup.IsOpen = true;
+        PrintPresetPopup.Visibility = Visibility.Visible;
     }
 
     private void Window_PreviewMouseDown(object sender, MouseButtonEventArgs e)
@@ -771,13 +854,13 @@ public partial class MainWindow : Window
             CloseSettingsPopup();
         }
 
-        if (PrintPresetPopup.IsOpen &&
+        if (PrintPresetPopup.Visibility == Visibility.Visible &&
             !PrintPresetPopupHost.IsMouseOver &&
             !SettingsPopupHost.IsMouseOver &&
             !SettingsPanel.IsMouseOver &&
             !PrintSettingsButton.IsMouseOver)
         {
-            PrintPresetPopup.IsOpen = false;
+            PrintPresetPopup.Visibility = Visibility.Collapsed;
         }
     }
 
@@ -786,7 +869,7 @@ public partial class MainWindow : Window
         CloseSettingsPopup();
         if (!_isBusy)
         {
-            PrintPresetPopup.IsOpen = false;
+            PrintPresetPopup.Visibility = Visibility.Collapsed;
         }
     }
 
@@ -824,7 +907,7 @@ public partial class MainWindow : Window
         SettingsPopup.HorizontalOffset = 0;
         SettingsPopup.VerticalOffset = 0;
         SettingsPopup.IsOpen = true;
-        PrintPresetPopup.IsOpen = true;
+        PrintPresetPopup.Visibility = Visibility.Visible;
         SetStatus($"Editing Copy {presetIndex + 1}; choose OK to save or Cancel to discard changes", StatusKind.Working);
     }
 
@@ -852,7 +935,7 @@ public partial class MainWindow : Window
         _activePrintPresetIndex = null;
         _printEditorOriginalSettings = null;
         PrintOptionsHeaderText.Text = "PRINT OPTIONS";
-        PrintPresetPopup.IsOpen = true;
+        PrintPresetPopup.Visibility = Visibility.Visible;
         SetStatus($"Copy {presetIndex + 1} print settings saved", StatusKind.Success);
     }
 
@@ -860,7 +943,7 @@ public partial class MainWindow : Window
     {
         var presetIndex = _activePrintPresetIndex;
         CloseSettingsPopup();
-        PrintPresetPopup.IsOpen = true;
+        PrintPresetPopup.Visibility = Visibility.Visible;
         if (presetIndex is not null)
         {
             SetStatus($"Copy {presetIndex.Value + 1} changes cancelled", StatusKind.Warning);
@@ -1333,6 +1416,10 @@ public partial class MainWindow : Window
         FinishButton.IsEnabled = !busy && Pages.Count > 0;
         SaveButton.IsEnabled = !busy && Pages.Count > 0;
         UpdatePrintPresetButtonState();
+        if (!busy && _lastSelectedActionButton is { IsEnabled: true } selectedButton)
+        {
+            selectedButton.Focus();
+        }
         if (message is not null)
         {
             SetStatus(message, StatusKind.Working);
@@ -1348,10 +1435,13 @@ public partial class MainWindow : Window
 
         var detail = percentage switch
         {
-            < 25 => "Finding the selected scanner…",
+            < 10 => "Starting Windows Image Acquisition…",
+            < 20 => "Finding the selected scanner…",
+            < 30 => "Connecting to the scanner…",
             < 40 => "Applying scan settings…",
-            < 70 => "Scanning the page…",
-            _ => "Receiving the scanned image…"
+            < 72 => "Scanning the page…",
+            < 78 => "Receiving the scanned image…",
+            _ => "Saving the acquired image…"
         };
         SetScanProgress(true, percentage, detail);
     }
@@ -1372,8 +1462,8 @@ public partial class MainWindow : Window
 
     private void SetScanProgress(bool visible, int percentage = 0, string? detail = null)
     {
-        var wasVisible = ScanProgressOverlay.IsOpen;
-        ScanProgressOverlay.IsOpen = visible;
+        var wasVisible = ScanProgressOverlay.Visibility == Visibility.Visible;
+        ScanProgressOverlay.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
         if (!visible)
         {
             ScanProgressBar.Value = 0;

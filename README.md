@@ -10,6 +10,7 @@ A compact Windows desktop application for Epson and Brother printers and scanner
 - A3, A4, Legal, and Letter scan sizes, with unsupported A3 and Legal options automatically hidden for the selected scanner
 - Detects every paper size reported by the selected printer, including driver-defined custom sizes and dimensions
 - 150, 200, 300, and 600 DPI scanning, with 300 DPI selected by default
+- Automatic document-background cleanup and local text contrast enhancement for True Gray, Gray Error Diffusion, and Black & White scans
 - Color, True Gray, Gray (Error Diffusion), and Black & White modes, with Color selected by default
 - Continuous multipage scanning with preview, zoom, scrolling, manual full-resolution crop, whole-page rotation, delete, and rescan controls
 - Live document page count in the footer

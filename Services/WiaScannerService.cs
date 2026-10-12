@@ -127,10 +127,10 @@ public sealed class WiaScannerService
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            progress?.Report(5);
+            progress?.Report(3);
             manager = CreateDeviceManager();
             cancellationToken.ThrowIfCancellationRequested();
-            progress?.Report(15);
+            progress?.Report(10);
             foreach (dynamic info in manager.DeviceInfos)
             {
                 if (string.Equals(Convert.ToString(info.DeviceID), scanner.Id, StringComparison.OrdinalIgnoreCase))
@@ -148,10 +148,10 @@ public sealed class WiaScannerService
             }
 
             cancellationToken.ThrowIfCancellationRequested();
-            progress?.Report(25);
+            progress?.Report(20);
             device = selectedInfo.Connect();
             cancellationToken.ThrowIfCancellationRequested();
-            progress?.Report(35);
+            progress?.Report(30);
             TrySetProperty(device.Properties, DocumentHandlingSelect,
                 options.Source == ScanSource.AutomaticDocumentFeeder ? Feeder : Flatbed);
 
@@ -175,7 +175,7 @@ public sealed class WiaScannerService
             progress?.Report(40);
             imageFile = item.Transfer(PngFormat);
             cancellationToken.ThrowIfCancellationRequested();
-            progress?.Report(70);
+            progress?.Report(72);
             if (File.Exists(outputPath))
             {
                 File.Delete(outputPath);
@@ -183,7 +183,7 @@ public sealed class WiaScannerService
 
             imageFile.SaveFile(outputPath);
             cancellationToken.ThrowIfCancellationRequested();
-            progress?.Report(75);
+            progress?.Report(78);
         }
         catch (COMException exception) when (options.PaperSize is "A3" or "Legal")
         {
