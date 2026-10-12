@@ -1,0 +1,190 @@
+<Window x:Class="RCPhotoStudio.Views.PackageEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:RCPhotoStudio.Controls"
+        Title="Package Designer — RC Photo Studio" Height="740" Width="900" MinHeight="580" MinWidth="760"
+        WindowStartupLocation="CenterOwner" Icon="/RCPhotoStudio;component/Assets/rc-logo.png">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="64"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="56"/>
+        </Grid.RowDefinitions>
+
+        <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+            <Grid Margin="24,0">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Image Source="/RCPhotoStudio;component/Assets/rc-logo.png" Width="42" Height="42" Stretch="Uniform" Margin="0,0,10,0"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock x:Name="HeadingText" Text="Create custom package" FontSize="22" FontWeight="SemiBold"/>
+                        <TextBlock Text="Design an exact reusable photo package layout"
+                                   Foreground="{DynamicResource MutedTextBrush}" FontSize="12"/>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="220"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Background="{DynamicResource SurfaceBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
+                <StackPanel Margin="14,14">
+                    <TextBlock Text="Package" FontWeight="SemiBold" FontSize="16" Margin="0,0,0,12"/>
+                    <TextBlock Text="Package name" FontSize="12" Margin="0,0,0,3"/>
+                    <TextBox Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10"/>
+                    <TextBlock Text="Saved automatically in Photo Packages"
+                               TextWrapping="Wrap" Foreground="{DynamicResource MutedTextBrush}" FontSize="11"/>
+                </StackPanel>
+            </Border>
+
+            <Grid Grid.Column="1" Margin="12,10">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <StackPanel>
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="Package layout preview" FontWeight="SemiBold" FontSize="17"/>
+                            <TextBlock Text="Ctrl + click selects multiple; drag empty paper to select. Ctrl + drag duplicates; Delete removes."
+                                       Foreground="{DynamicResource MutedTextBrush}" FontSize="11"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <TextBlock Text="Zoom" VerticalAlignment="Center" Margin="0,0,7,0"/>
+                            <Button Content="−" Width="34" Padding="0,6" Click="ZoomOut_Click" ToolTip="Zoom out"/>
+                            <TextBlock x:Name="ZoomText" Text="100%" Width="54" TextAlignment="Center" VerticalAlignment="Center"/>
+                            <Button Content="+" Width="34" Padding="0,6" Click="ZoomIn_Click" ToolTip="Zoom in" Margin="0,0,12,0"/>
+                            <Button Content="＋ Picture Box" Click="AddPictureBox_Click" Margin="0,0,7,0"/>
+                            <Button Content="Duplicate" Click="DuplicatePictureBox_Click" Margin="0,0,7,0"/>
+                            <Button Content="Remove" Click="RemovePictureBox_Click"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="18"/>
+                            <ColumnDefinition Width="150"/>
+                            <ColumnDefinition Width="18"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="Paper" FontSize="12" Margin="0,0,0,3"/>
+                            <ComboBox x:Name="PaperBox" DisplayMemberPath="Name" SelectedValuePath="Name"
+                                      SelectedValue="{Binding PaperName, Mode=TwoWay}"
+                                      SelectionChanged="PaperSetting_Changed"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Orientation" FontSize="12" Margin="0,0,0,3"/>
+                            <ComboBox x:Name="OrientationBox" SelectedItem="{Binding Orientation, Mode=TwoWay}"
+                                      SelectionChanged="PaperSetting_Changed"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="4">
+                            <TextBlock Text="Measurement unit" FontSize="12" Margin="0,0,0,3"/>
+                            <ComboBox x:Name="MeasurementUnitBox" SelectionChanged="MeasurementUnit_Changed"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="6" VerticalAlignment="Bottom" Margin="0,0,0,7">
+                            <CheckBox x:Name="RulerGuideToggle" Content="Ruler guides" IsChecked="{Binding ShowGrid}"
+                                      Checked="DesignerOption_Changed" Unchecked="DesignerOption_Changed" Margin="0,0,14,5"/>
+                            <CheckBox x:Name="SnapGridToggle" Content="Snap to grid"
+                                      Checked="DesignerOption_Changed" Unchecked="DesignerOption_Changed"/>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+
+                <Grid Grid.Row="1" Margin="0,8,0,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="220"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Background="#2B323D" BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="6">
+                        <ScrollViewer x:Name="DesignerViewport" HorizontalScrollBarVisibility="Auto"
+                                      VerticalScrollBarVisibility="Auto" CanContentScroll="False"
+                                      HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                      SizeChanged="DesignerViewport_SizeChanged"
+                                      PreviewMouseWheel="DesignerViewport_PreviewMouseWheel">
+                            <controls:PackageLayoutDesignerControl x:Name="LayoutDesigner"
+                                SelectedBoxChanged="LayoutDesigner_SelectedBoxChanged"
+                                LayoutBoxChanged="LayoutDesigner_LayoutBoxChanged"/>
+                        </ScrollViewer>
+                    </Border>
+
+                    <Border Grid.Column="1" Margin="10,0,0,0" Padding="12"
+                            Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1" CornerRadius="8">
+                        <StackPanel>
+                            <TextBlock Text="Selected picture box" FontWeight="SemiBold" FontSize="15"/>
+                            <TextBlock x:Name="SelectionHint" Text="Select a box in the preview"
+                                       Foreground="{DynamicResource MutedTextBrush}" FontSize="11" Margin="0,2,0,12"/>
+
+                            <TextBlock Text="Label" FontSize="12" Margin="0,0,0,3"/>
+                            <TextBox x:Name="BoxLabelBox" TextChanged="BoxLabel_TextChanged" Margin="0,0,0,10"/>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="10"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock x:Name="BoxXLabel" Text="X position (mm)" FontSize="11" Margin="0,0,0,3"/>
+                                    <TextBox x:Name="BoxXBox" LostFocus="BoxValue_LostFocus" KeyDown="BoxValue_KeyDown"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock x:Name="BoxYLabel" Text="Y position (mm)" FontSize="11" Margin="0,0,0,3"/>
+                                    <TextBox x:Name="BoxYBox" LostFocus="BoxValue_LostFocus" KeyDown="BoxValue_KeyDown"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <Grid Margin="0,10,0,0">
+                                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="10"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock x:Name="BoxWidthLabel" Text="Width (mm)" FontSize="11" Margin="0,0,0,3"/>
+                                    <TextBox x:Name="BoxWidthBox" LostFocus="BoxValue_LostFocus" KeyDown="BoxValue_KeyDown"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock x:Name="BoxHeightLabel" Text="Height (mm)" FontSize="11" Margin="0,0,0,3"/>
+                                    <TextBox x:Name="BoxHeightBox" LostFocus="BoxValue_LostFocus" KeyDown="BoxValue_KeyDown"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <TextBlock Text="Rotation (degrees)" FontSize="11" Margin="0,12,0,3"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <TextBox x:Name="BoxRotationBox" LostFocus="BoxValue_LostFocus" KeyDown="BoxValue_KeyDown"/>
+                                <TextBlock Grid.Column="1" Text="°" FontSize="16" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                            </Grid>
+                            <Slider x:Name="RotationSlider" Minimum="-180" Maximum="180" TickFrequency="1"
+                                    IsSnapToTickEnabled="False" ValueChanged="RotationSlider_ValueChanged" Margin="0,5,0,8"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                <Button Content="↶ Counter" Click="RotateCounterClockwise_Click" Padding="8,6"/>
+                                <Button Grid.Column="2" Content="Clockwise ↷" Click="RotateClockwise_Click" Padding="8,6"/>
+                            </Grid>
+
+                            <TextBlock x:Name="MeasurementHelpText" Text="All values are exact millimetres. Boxes must remain inside the selected paper."
+                                       TextWrapping="Wrap" Foreground="{DynamicResource MutedTextBrush}"
+                                       FontSize="10" Margin="0,12,0,0"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <TextBlock x:Name="LayoutDesignerSummary" Grid.Row="2"
+                           Foreground="{DynamicResource MutedTextBrush}" FontSize="11"/>
+            </Grid>
+        </Grid>
+
+        <Border Grid.Row="2" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="24,0">
+                <Button Content="Cancel" Width="100" Click="Cancel_Click" Margin="0,0,10,0"/>
+                <Button Content="Save Package" Width="140" Style="{StaticResource PrimaryButtonStyle}" Click="Save_Click"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>

@@ -1,0 +1,317 @@
+<Window x:Class="RCPhotoStudio.Views.TicketPrintingWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Ticket Printing — Document Preview" Height="820" Width="1320"
+        MinHeight="600" MinWidth="800" WindowStartupLocation="CenterOwner"
+        PreviewMouseWheel="Window_PreviewMouseWheel"
+        Icon="/RCPhotoStudio;component/Assets/ticket-printing-menu.png">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="72"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Border Background="{DynamicResource SurfaceBrush}"
+                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+            <Grid Margin="22,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Image Source="/RCPhotoStudio;component/Assets/ticket-printing-menu.png"
+                           Width="50" Height="50" Stretch="Uniform" Margin="0,0,11,0"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Ticket Printing" FontSize="22" FontWeight="SemiBold"/>
+                        <TextBlock Text="Document preview" FontSize="12"
+                                   Foreground="{DynamicResource MutedTextBrush}"/>
+                    </StackPanel>
+                </StackPanel>
+                <Button Grid.Column="1" Content="Close" Width="96" Height="34"
+                        VerticalAlignment="Center" Click="Close_Click"/>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="270"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Background="{DynamicResource SurfaceBrush}"
+                    BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
+                <Grid Margin="12,10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="Ticket settings" FontSize="16" FontWeight="SemiBold"/>
+                    <TextBlock Grid.Row="1" Text="Ticket document controls"
+                               Margin="0,2,0,8" FontSize="10"
+                               Foreground="{DynamicResource MutedTextBrush}"/>
+
+                    <StackPanel Grid.Row="2">
+                        <Border Padding="9" Background="{DynamicResource SurfaceAltBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                CornerRadius="7">
+                            <StackPanel>
+                                <TextBlock Text="Document" FontSize="13" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="DocumentStatusText" Text="No image selected" Margin="0,3,0,6"
+                                           FontSize="10" TextWrapping="Wrap" TextTrimming="CharacterEllipsis"
+                                           Foreground="{DynamicResource MutedTextBrush}"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="6"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Button Content="Browse" Height="30" Padding="6,3" FontSize="11"
+                                            Click="BrowseImage_Click"/>
+                                    <Button x:Name="EditAgainButton" Grid.Column="2" Content="Edit Again"
+                                            Height="30" Padding="6,3" FontSize="11"
+                                            IsEnabled="False" Click="EditAgain_Click"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Margin="0,6,0,0" Padding="9"
+                                Background="{DynamicResource SurfaceAltBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                CornerRadius="7">
+                            <StackPanel>
+                                <TextBlock Text="Image layout" FontSize="12" FontWeight="SemiBold"/>
+                                <Grid Margin="0,5,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="7"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="7"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="30"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Text="Sides (in)" FontSize="10"/>
+                                    <TextBlock Grid.Column="2" Text="Top (in)" FontSize="10"/>
+                                    <TextBlock Grid.Column="4" Text="Gap (in)" FontSize="10"/>
+                                    <TextBox x:Name="SideMarginBox" Grid.Row="1" Text="0"
+                                             Margin="0,3,0,0" TextAlignment="Center"
+                                             VerticalContentAlignment="Center"
+                                             TextChanged="TicketLayout_Changed"/>
+                                    <TextBox x:Name="TopMarginBox" Grid.Row="1" Grid.Column="2" Text="0"
+                                             Margin="0,3,0,0" TextAlignment="Center"
+                                             VerticalContentAlignment="Center"
+                                             TextChanged="TicketLayout_Changed"/>
+                                    <TextBox x:Name="ImageGapBox" Grid.Row="1" Grid.Column="4" Text="0"
+                                             Margin="0,3,0,0" TextAlignment="Center"
+                                             VerticalContentAlignment="Center"
+                                             TextChanged="TicketLayout_Changed"/>
+                                </Grid>
+                                <CheckBox x:Name="AutoRotateToFillBox"
+                                          Content="Auto-rotate to fill remaining space"
+                                          IsChecked="True" Margin="0,6,0,0" FontSize="10"
+                                          Checked="AutoRotateToFill_Changed"
+                                          Unchecked="AutoRotateToFill_Changed"/>
+                                <CheckBox x:Name="PrintTicketBordersBox"
+                                          Content="Print border around each ticket"
+                                          IsChecked="False" Margin="0,4,0,0" FontSize="10"
+                                          Checked="PrintTicketBorders_Changed"
+                                          Unchecked="PrintTicketBorders_Changed"/>
+                                <TextBlock x:Name="LayoutStatusText" Margin="0,4,0,0" FontSize="9"
+                                           TextWrapping="Wrap"
+                                           Foreground="{DynamicResource MutedTextBrush}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Margin="0,6,0,0" Padding="9"
+                                Background="{DynamicResource SurfaceAltBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                CornerRadius="7">
+                            <StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="7"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="30"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Text="Paper size" FontSize="10"/>
+                                    <TextBlock Grid.Column="2" Text="Orientation" FontSize="10"/>
+                                    <ComboBox x:Name="PaperSizeBox" Grid.Row="1" Margin="0,3,0,0"
+                                              SelectionChanged="PaperSize_Changed"/>
+                                    <ComboBox x:Name="PaperOrientationBox" Grid.Row="1" Grid.Column="2"
+                                              Margin="0,3,0,0" SelectionChanged="PaperOrientation_Changed"/>
+                                </Grid>
+                                <TextBlock x:Name="PaperSizeStatusText" Margin="0,4,0,0" FontSize="9"
+                                           Foreground="{DynamicResource MutedTextBrush}"/>
+                                <StackPanel x:Name="CustomPaperPanel" Margin="0,6,0,0" Visibility="Collapsed">
+                                    <TextBlock Text="Custom size (inches)" FontSize="10" FontWeight="SemiBold"/>
+                                    <Grid Margin="0,4,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="10"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Text="Width" FontSize="10"/>
+                                        <TextBlock Grid.Column="2" Text="Height" FontSize="10"/>
+                                        <TextBox x:Name="CustomPaperWidthBox" Grid.Row="1" Text="8.5"
+                                                 Margin="0,3,0,0" TextAlignment="Center"/>
+                                        <TextBox x:Name="CustomPaperHeightBox" Grid.Row="1" Grid.Column="2" Text="11"
+                                                 Margin="0,3,0,0" TextAlignment="Center"/>
+                                    </Grid>
+                                    <Button Content="Apply Custom Size" Height="30" Padding="8,3"
+                                            FontSize="11" Margin="0,5,0,0"
+                                            Click="ApplyCustomPaperSize_Click"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Margin="0,6,0,0" Padding="9"
+                                Background="{DynamicResource SurfaceAltBrush}"
+                                BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1"
+                                CornerRadius="7">
+                            <StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Number range" FontSize="12" FontWeight="SemiBold"/>
+                                    <TextBlock x:Name="SidebarPageStatusText" Grid.Column="1" Text="Page 1 of 1"
+                                               FontSize="10" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource MutedTextBrush}"/>
+                                </Grid>
+                                <TextBlock x:Name="PageCapacityText" Text="Images per page: --"
+                                           Margin="0,3,0,0" FontSize="10"
+                                           Foreground="{DynamicResource MutedTextBrush}"/>
+                                <StackPanel x:Name="NumberRangePanel" Margin="0,4,0,0" IsEnabled="False">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="10"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="30"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Text="Start" FontSize="10"/>
+                                        <TextBlock Grid.Column="2" Text="Up to" FontSize="10"/>
+                                        <TextBox x:Name="StartNumberBox" Grid.Row="1"
+                                                 Margin="0,3,0,0" TextAlignment="Center"
+                                                 VerticalContentAlignment="Center"
+                                                 PreviewTextInput="NumberRange_PreviewTextInput"
+                                                 DataObject.Pasting="NumberRange_Pasting"
+                                                 TextChanged="NumberRange_Changed"/>
+                                        <TextBox x:Name="EndNumberBox" Grid.Row="1" Grid.Column="2"
+                                                 Margin="0,3,0,0" TextAlignment="Center"
+                                                 VerticalContentAlignment="Center"
+                                                 ToolTip="Maximum 9,999 duplicated images"
+                                                 PreviewTextInput="NumberRange_PreviewTextInput"
+                                                 DataObject.Pasting="NumberRange_Pasting"
+                                                 TextChanged="NumberRange_Changed"/>
+                                    </Grid>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Column="1" Background="#2B323D">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="50"/>
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <ScrollViewer x:Name="PreviewScrollViewer"
+                                  HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalContentAlignment="Center"
+                                  VerticalContentAlignment="Center"
+                                  PanningMode="Both">
+                        <Grid Margin="24">
+                            <Border x:Name="PreviewPaper" Width="420" Height="594" Background="White"
+                                    BorderBrush="#B4B9C2" BorderThickness="1" ClipToBounds="True"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <Border.LayoutTransform>
+                                    <ScaleTransform x:Name="PreviewZoomTransform" ScaleX="1" ScaleY="1"/>
+                                </Border.LayoutTransform>
+                                <Grid>
+                                    <Canvas x:Name="DocumentPreviewCanvas" Background="Transparent"
+                                            HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                            ClipToBounds="True"/>
+                                    <TextBlock x:Name="DocumentPreviewHint" Text="Browse an image to preview"
+                                               Foreground="#7B8492"
+                                               FontSize="18" HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"/>
+                                </Grid>
+                            </Border>
+                        </Grid>
+                    </ScrollViewer>
+
+                    <Border x:Name="PageThumbnailPanel" Grid.Column="1" Width="126"
+                            Visibility="Collapsed" Background="{DynamicResource SurfaceBrush}"
+                            BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1,0,0,0">
+                        <Grid Margin="9,10">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Text="Pages" FontSize="13" FontWeight="SemiBold"
+                                       HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled">
+                                <StackPanel x:Name="PageThumbnailList"/>
+                            </ScrollViewer>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <Border Grid.Row="1" Background="{DynamicResource SurfaceBrush}"
+                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">
+                    <Grid Margin="18,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Orientation="Horizontal"
+                                    HorizontalAlignment="Left" VerticalAlignment="Center">
+                            <Button Content="−" Width="28" Height="28" Padding="0"
+                                    FontSize="16" FontWeight="SemiBold" Margin="0,0,5,0"
+                                    ToolTip="Zoom out" Click="ZoomOut_Click"/>
+                            <TextBlock x:Name="ZoomPercentText" Text="100%" Width="50"
+                                       TextAlignment="Center" VerticalAlignment="Center"/>
+                            <Button Content="+" Width="28" Height="28" Padding="0"
+                                    FontSize="16" FontWeight="SemiBold" Margin="5,0,0,0"
+                                    ToolTip="Zoom in" Click="ZoomIn_Click"/>
+                        </StackPanel>
+                        <TextBlock x:Name="FooterPageStatusText" Grid.Column="1" Text="Page 1 of 1"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center" Foreground="{DynamicResource MutedTextBrush}"/>
+                        <Button x:Name="SavePdfButton" Grid.Column="2" Content="Save PDF"
+                                Width="120" Height="34" HorizontalAlignment="Right"
+                                VerticalAlignment="Center" IsEnabled="False"
+                                Style="{StaticResource PrimaryButtonStyle}" Click="SavePdf_Click"/>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>
