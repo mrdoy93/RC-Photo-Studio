@@ -49,6 +49,7 @@ namespace RCPhotoStudio.Views
     public partial class PrintWorkspaceWindow : Window, INotifyPropertyChanged
     {
         private const float OutputPictureBorderWidthPixels = 0.10f;
+        private const float HundredthsOfAnInchToMillimeters = 25.4f / 100.0f;
         private const double PvcCardWidthMm = 2.14 * 25.4;
         private const double PvcCardHeightMm = 3.39 * 25.4;
         private const double PvcCardCornerRadiusMm = 3.2;
@@ -651,12 +652,12 @@ namespace RCPhotoStudio.Views
                 var page = index / cardsPerPage;
                 var position = index % cardsPerPage;
                 // Portrait paper fills each row from right to left. Landscape paper
-                // fills each column from top to bottom, then moves to the right.
+                // starts at the top-right, fills each column from top to bottom,
+                // then moves to the left.
                 var row = landscape ? position % rows : position / columns;
                 var column = landscape ? position / rows : position % columns;
-                var x = landscape
-                    ? PvcPrintableMarginMm + column * (cardWidth + columnGap)
-                    : pageWidth - PvcPrintableMarginMm - cardWidth - column * (cardWidth + columnGap);
+                var x = pageWidth - PvcPrintableMarginMm - cardWidth -
+                    column * (cardWidth + columnGap);
                 var y = PvcPrintableMarginMm + row * (cardHeight + rowGap);
                 layout.Placements.Add(new PrintPlacement
                 {
@@ -1184,6 +1185,7 @@ namespace RCPhotoStudio.Views
                 document.DocumentName = "RC Photo Studio - " + package.Name;
                 document.PrintController = new StandardPrintController();
                 document.PrinterSettings = (PrinterSettings)printerSettings.Clone();
+                document.OriginAtMargins = false;
                 document.DefaultPageSettings.Landscape = layout.PaperWidthMm > layout.PaperHeightMm;
                 document.DefaultPageSettings.Margins = new Margins(0, 0, 0, 0);
                 var paper = FindMatchingPaperSize(document.PrinterSettings, layout);
@@ -1191,8 +1193,23 @@ namespace RCPhotoStudio.Views
 
                 document.PrintPage += delegate(object sender, PrintPageEventArgs e)
                 {
-                    DrawPrintPage(e.Graphics, pageIndex, layout, printCutGuides,
-                        SupportsPictureBorders(package));
+                    var state = e.Graphics.Save();
+                    try
+                    {
+                        // PrintPage graphics begin at the printer's imageable origin on
+                        // drivers with hardware margins. Move back to the physical paper
+                        // origin so preview/PDF page coordinates are not shifted right.
+                        e.Graphics.PageUnit = GraphicsUnit.Millimeter;
+                        e.Graphics.TranslateTransform(
+                            -Math.Max(0, e.PageSettings.HardMarginX) * HundredthsOfAnInchToMillimeters,
+                            -Math.Max(0, e.PageSettings.HardMarginY) * HundredthsOfAnInchToMillimeters);
+                        DrawPrintPage(e.Graphics, pageIndex, layout, printCutGuides,
+                            SupportsPictureBorders(package));
+                    }
+                    finally
+                    {
+                        e.Graphics.Restore(state);
+                    }
                     pageIndex++;
                     e.HasMorePages = pageIndex < layout.PageCount;
                 };
