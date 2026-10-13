@@ -183,7 +183,10 @@ namespace RCPhotoStudio.Services
             var sizes = package.Items == null
                 ? new List<PhotoSizeItem>()
                 : package.Items.Where(item => item != null && item.Quantity > 0 &&
-                    item.WidthMm > 0 && item.HeightMm > 0).ToList();
+                    item.WidthMm > 0 && item.HeightMm > 0)
+                    // The compact 1 x 1 packing fills space beside the preceding larger row.
+                    .OrderBy(item => IsOneByOneSize(item) ? 1 : 0)
+                    .ToList();
             if (sizes.Count == 0)
             {
                 result.PageCount = 0;

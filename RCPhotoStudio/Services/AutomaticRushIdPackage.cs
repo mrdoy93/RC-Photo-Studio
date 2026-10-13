@@ -23,8 +23,9 @@ namespace RCPhotoStudio.Services
                 PlacementMode = "Multiple Photos",
                 PhotoFitMode = "Crop",
                 PrintAmount = 1,
+                PrintPictureBorder = true,
                 AutoFlowNoGap = true,
-                AutomaticRushLayoutVersion = 2,
+                AutomaticRushLayoutVersion = 3,
                 Items = new ObservableCollection<PhotoSizeItem>(),
                 LayoutBoxes = new ObservableCollection<PackageLayoutBox>()
             };
@@ -64,6 +65,12 @@ namespace RCPhotoStudio.Services
                     automatic.PaperName = "A4";
                     automatic.Orientation = "Portrait";
                     automatic.AutomaticRushLayoutVersion = 2;
+                    changed = true;
+                }
+                if (automatic.AutomaticRushLayoutVersion < 3)
+                {
+                    automatic.PrintPictureBorder = true;
+                    automatic.AutomaticRushLayoutVersion = 3;
                     changed = true;
                 }
                 if (automatic.Items == null)
