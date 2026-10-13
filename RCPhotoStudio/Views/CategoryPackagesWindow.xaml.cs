@@ -532,9 +532,10 @@ namespace RCPhotoStudio.Views
         private void PhotoFit_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_updatingPhotoFit || !string.Equals(_category, "Photo", StringComparison.OrdinalIgnoreCase) ||
-                SelectedPackage == null)
+                SelectedPackage == null || PhotoFitBox.SelectedItem == null)
                 return;
 
+            ApplyPhotoFitToAllButton.IsEnabled = true;
             var mode = string.Equals(Convert.ToString(PhotoFitBox.SelectedItem), "Stretch",
                 StringComparison.OrdinalIgnoreCase) ? "Stretch" : "Crop";
             var applied = _multiPhotoLayout != null && MultiPhotoPreview.Visibility == Visibility.Visible
@@ -547,6 +548,43 @@ namespace RCPhotoStudio.Views
         {
             UpdatePhotoFitControl();
             UpdatePictureBorderControl();
+        }
+
+        private void ApplyPhotoFitToAll_Click(object sender, RoutedEventArgs e)
+        {
+            if (SelectedPackage == null || PhotoFitBox.SelectedItem == null) return;
+            var mode = NormalizePhotoFitMode(Convert.ToString(PhotoFitBox.SelectedItem));
+            SelectedPackage.PhotoFitMode = mode;
+            AssignmentPreview.SetAllPhotoFitModes(mode);
+            if (_multiPhotoLayout != null)
+            {
+                foreach (var placement in _multiPhotoLayout.Placements)
+                    placement.PhotoFitMode = mode;
+                MultiPhotoPreview.InvalidateVisual();
+                UpdateMultiPhotoPageDisplay();
+            }
+            UpdatePhotoFitControl();
+            if (_savePackages != null) _savePackages();
+        }
+
+        private void ApplyPictureBorderToAll_Click(object sender, RoutedEventArgs e)
+        {
+            if (SelectedPackage == null || PictureBorderBox.SelectedItem == null) return;
+            var printBorder = string.Equals(Convert.ToString(PictureBorderBox.SelectedItem),
+                "Print border", StringComparison.OrdinalIgnoreCase);
+            SelectedPackage.PrintPictureBorder = printBorder;
+            AssignmentPreview.SetAllPhotoPictureBorders(printBorder);
+            AssignmentPreview.ShowPictureBorders = true;
+            if (_multiPhotoLayout != null)
+            {
+                foreach (var placement in _multiPhotoLayout.Placements)
+                    placement.PrintPictureBorder = printBorder;
+                MultiPhotoPreview.ShowPictureBorders = true;
+                MultiPhotoPreview.InvalidateVisual();
+                UpdateMultiPhotoPageDisplay();
+            }
+            UpdatePictureBorderControl();
+            if (_savePackages != null) _savePackages();
         }
 
         private void UpdatePhotoFitControl()
@@ -570,7 +608,8 @@ namespace RCPhotoStudio.Views
             try
             {
                 PhotoFitBox.SelectedItem = string.IsNullOrWhiteSpace(mode) ? null : mode;
-                PhotoFitBox.IsEnabled = hasSelectedPhoto;
+                PhotoFitBox.IsEnabled = SelectedPackage != null;
+                ApplyPhotoFitToAllButton.IsEnabled = SelectedPackage != null && PhotoFitBox.SelectedItem != null;
             }
             finally { _updatingPhotoFit = false; }
         }
@@ -578,9 +617,10 @@ namespace RCPhotoStudio.Views
         private void PictureBorder_Changed(object sender, SelectionChangedEventArgs e)
         {
             if (_updatingPictureBorder || !string.Equals(_category, "Photo", StringComparison.OrdinalIgnoreCase) ||
-                SelectedPackage == null)
+                SelectedPackage == null || PictureBorderBox.SelectedItem == null)
                 return;
 
+            ApplyPictureBorderToAllButton.IsEnabled = true;
             var printBorder = string.Equals(
                 Convert.ToString(PictureBorderBox.SelectedItem), "Print border",
                 StringComparison.OrdinalIgnoreCase);
@@ -612,7 +652,8 @@ namespace RCPhotoStudio.Views
                 PictureBorderBox.SelectedItem = printBorder.HasValue
                     ? printBorder.Value ? "Print border" : "Do not print"
                     : null;
-                PictureBorderBox.IsEnabled = hasSelectedPhoto;
+                PictureBorderBox.IsEnabled = SelectedPackage != null;
+                ApplyPictureBorderToAllButton.IsEnabled = SelectedPackage != null && PictureBorderBox.SelectedItem != null;
             }
             finally { _updatingPictureBorder = false; }
         }

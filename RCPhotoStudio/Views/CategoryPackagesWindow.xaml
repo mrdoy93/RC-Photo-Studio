@@ -294,7 +294,7 @@
                                           ToolTip="Choose Crop or Stretch for the Rush ID package"/>
                             </Grid>
                         </Border>
-                        <Border x:Name="PhotoFitPanel" Grid.ColumnSpan="2" Margin="0,0,0,7" Padding="8,5"
+                        <Border x:Name="PhotoFitPanel" Grid.ColumnSpan="2" Margin="0,0,0,5" Padding="8,5"
                                 Background="{DynamicResource SurfaceAltBrush}" BorderBrush="{DynamicResource BorderBrush}"
                                 BorderThickness="1" CornerRadius="6" Visibility="Collapsed">
                             <Grid>
@@ -305,26 +305,29 @@
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Row="0" VerticalAlignment="Center">
-                                    <TextBlock Text="Picture fit" FontSize="11"/>
-                                    <TextBlock Text="Applies to selected preview picture(s)" FontSize="9"
-                                               Foreground="{DynamicResource MutedTextBrush}"/>
-                                </StackPanel>
-                                <ComboBox x:Name="PhotoFitBox" Grid.Row="0" Grid.Column="1" Width="105" Height="29"
+                                <TextBlock Text="Picture fit" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0"
+                                           ToolTip="Applies to selected preview picture(s)"/>
+                                <ComboBox x:Name="PhotoFitBox" Grid.Column="1" Width="105" Height="27" MinHeight="27" Padding="6,2"
                                           IsEnabled="False" SelectionChanged="PhotoFit_SelectionChanged"
                                           ToolTip="Choose Crop or Stretch for the selected preview picture"/>
-                                <StackPanel Grid.Row="1" Margin="0,7,0,1" VerticalAlignment="Center">
-                                    <TextBlock Text="Picture border" FontSize="11"/>
-                                    <TextBlock Text="For selected preview picture(s)" FontSize="9"
-                                               Foreground="{DynamicResource MutedTextBrush}"/>
-                                </StackPanel>
-                                <ComboBox x:Name="PictureBorderBox" Grid.Row="1" Grid.Column="1" Width="105" Height="29"
-                                          Margin="0,7,0,1" IsEnabled="False" SelectionChanged="PictureBorder_Changed"
+                                <Button x:Name="ApplyPhotoFitToAllButton" Grid.Column="2" Content="Apply to all"
+                                        Height="27" Padding="8,0" Margin="6,0,0,0" FontSize="11"
+                                        IsEnabled="False" Click="ApplyPhotoFitToAll_Click"
+                                        ToolTip="Apply this fit to every image across all package pages"/>
+                                <TextBlock Grid.Row="1" Text="Picture border" FontSize="11" VerticalAlignment="Center" Margin="0,5,6,0"
+                                           ToolTip="For selected preview picture(s)"/>
+                                <ComboBox x:Name="PictureBorderBox" Grid.Row="1" Grid.Column="1" Width="105" Height="27" MinHeight="27" Padding="6,2"
+                                          Margin="0,5,0,0" IsEnabled="False" SelectionChanged="PictureBorder_Changed"
                                           ToolTip="Choose whether the selected preview picture prints with a border"/>
+                                <Button x:Name="ApplyPictureBorderToAllButton" Grid.Row="1" Grid.Column="2" Content="Apply to all"
+                                        Height="27" Padding="8,0" Margin="6,5,0,0" FontSize="11"
+                                        IsEnabled="False" Click="ApplyPictureBorderToAll_Click"
+                                        ToolTip="Apply this print border setting to every image across all package pages"/>
                             </Grid>
                         </Border>
-                        <Border x:Name="PhotoCopyPanel" Grid.Row="1" Grid.ColumnSpan="2" Margin="0,0,0,7" Padding="8,5"
+                        <Border x:Name="PhotoCopyPanel" Grid.Row="1" Grid.ColumnSpan="2" Margin="0,0,0,5" Padding="8,4"
                                 Background="{DynamicResource SurfaceAltBrush}" BorderBrush="{DynamicResource BorderBrush}"
                                 BorderThickness="1" CornerRadius="6" Visibility="Collapsed">
                             <Grid>
@@ -332,11 +335,8 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Text="Copies of selected" FontSize="11"/>
-                                    <TextBlock Text="Saved separately for each picture" FontSize="9"
-                                               Foreground="{DynamicResource MutedTextBrush}"/>
-                                </StackPanel>
+                                <TextBlock Text="Copies of selected" FontSize="11" VerticalAlignment="Center"
+                                           ToolTip="Saved separately for each picture"/>
                                 <StackPanel Grid.Column="1" Orientation="Horizontal">
                                     <Button x:Name="PhotoCopyMinusButton" Content="−" Width="28" Height="27" Padding="0"
                                             Click="PhotoCopyMinus_Click"/>
