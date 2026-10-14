@@ -17,6 +17,11 @@ namespace RCPhotoStudio.Views
 {
     public partial class CategoryPackagesWindow : Window, INotifyPropertyChanged
     {
+        private const string OnePhotoPerRushIdPackage = "One photo per package";
+        private const string MultiplePhotosInRushIdPackage = "Mix images by package";
+        private const string LegacyMultiplePhotosInRushIdPackage = "Multiple photos in one package";
+        private const string RushIdMultiplePicturesPlacement = "Rush ID Multiple Pictures";
+
         private static readonly HashSet<string> SupportedExtensions = new HashSet<string>(
             new[] { ".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tif", ".tiff" },
             StringComparer.OrdinalIgnoreCase);
@@ -38,6 +43,8 @@ namespace RCPhotoStudio.Views
         private bool _updatingPictureBorder;
         private bool _updatingRushIdPictureBorder;
         private bool _updatingRushIdPhotoFit;
+        private bool _updatingRushIdPhotoArrangement;
+        private bool _updatingRushIdPhotoAssignments;
         private bool _updatingAutomaticRushControls;
 
         private sealed class RemovedPackageState
@@ -73,6 +80,11 @@ namespace RCPhotoStudio.Views
             MultiPhotoPreview.AllowPhotoReposition = allowPhotoReposition;
             PhotoFitBox.ItemsSource = new[] { "Crop", "Stretch" };
             RushIdPhotoFitBox.ItemsSource = new[] { "Crop", "Stretch" };
+            RushIdPhotoArrangementBox.ItemsSource = new[]
+            {
+                OnePhotoPerRushIdPackage,
+                MultiplePhotosInRushIdPackage
+            };
             PictureBorderBox.ItemsSource = new[] { "Do not print", "Print border" };
             RushIdPictureBorderBox.ItemsSource = new[] { "Do not print", "Print border" };
             PhotoFitPanel.Visibility = allowPhotoReposition ? Visibility.Visible : Visibility.Collapsed;
@@ -84,6 +96,10 @@ namespace RCPhotoStudio.Views
                 : "Choose a package, import photos, then fill or drag thumbnails into its picture boxes";
             Photos = new ObservableCollection<PhotoFile>();
             PhotoList.ItemsSource = Photos;
+            TwoByTwoPhotoBox.ItemsSource = Photos;
+            OneByOnePhotoBox.ItemsSource = Photos;
+            OnePointFivePhotoBox.ItemsSource = Photos;
+            PassportPhotoBox.ItemsSource = Photos;
 
             _categoryPackages = new ObservableCollection<PhotoPackage>(packages.Where(MatchesCategory));
             var packageView = CollectionViewSource.GetDefaultView(_categoryPackages);
@@ -91,7 +107,7 @@ namespace RCPhotoStudio.Views
             PackageList.ItemsSource = packageView;
             SavedPackagePanel.Visibility = isAutomaticRushId ? Visibility.Collapsed : Visibility.Visible;
             AutomaticRushIdPanel.Visibility = isAutomaticRushId ? Visibility.Visible : Visibility.Collapsed;
-            PackageColumn.Width = new GridLength(isAutomaticRushId ? 250 : 150);
+            PackageColumn.Width = new GridLength(isAutomaticRushId ? 230 : 150);
             var usesSavedPrintSettings =
                 string.Equals(_category, "Rush ID", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(_category, "Photo", StringComparison.OrdinalIgnoreCase);
@@ -157,12 +173,17 @@ namespace RCPhotoStudio.Views
                     FindAutomaticSize(package, 38.1, 38.1));
                 SetAutomaticSizeControl(PassportCheckBox, PassportQuantityBox,
                     FindAutomaticSize(package, 34.9758, 44.958));
+                TwoByTwoIncludeOneByOneCheckBox.IsChecked = package.MixOneByOneWithTwoByTwo;
+                OnePointFiveIncludeOneByOneCheckBox.IsChecked = package.MixOneByOneWithOnePointFive;
+                PassportIncludeOneByOneCheckBox.IsChecked = package.MixOneByOneWithPassport;
             }
             finally
             {
                 _updatingAutomaticRushControls = false;
             }
 
+            UpdateRushIdPhotoAssignmentControls();
+            AssignDefaultRushIdSizePhotos();
             RefreshAutomaticRushIdPreview();
         }
 
@@ -177,6 +198,127 @@ namespace RCPhotoStudio.Views
             checkBox.IsChecked = item != null;
             quantityBox.Text = (item == null ? 1 : Math.Max(1, item.Quantity)).ToString();
             quantityBox.IsEnabled = item != null;
+        }
+
+        private void UpdateRushIdPhotoAssignmentControls()
+        {
+            if (TwoByTwoPhotoBox == null) return;
+            var visibility = UsesMultiplePhotosInRushIdPackage()
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+            TwoByTwoPhotoBox.Visibility = visibility;
+            OnePointFivePhotoBox.Visibility = visibility;
+            PassportPhotoBox.Visibility = visibility;
+            var hasLargerSize = TwoByTwoCheckBox.IsChecked == true ||
+                                OnePointFiveCheckBox.IsChecked == true ||
+                                PassportCheckBox.IsChecked == true;
+            OneByOnePhotoBox.Visibility = visibility == Visibility.Visible && !hasLargerSize
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+            OneByOnePhotoHint.Visibility = visibility == Visibility.Visible && hasLargerSize &&
+                                             OneByOneCheckBox.IsChecked == true
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+            TwoByTwoPhotoBox.IsEnabled = TwoByTwoCheckBox.IsChecked == true && Photos.Count > 0;
+            OneByOnePhotoBox.IsEnabled = OneByOneCheckBox.IsChecked == true &&
+                                         !hasLargerSize && Photos.Count > 0;
+            OnePointFivePhotoBox.IsEnabled = OnePointFiveCheckBox.IsChecked == true && Photos.Count > 0;
+            PassportPhotoBox.IsEnabled = PassportCheckBox.IsChecked == true && Photos.Count > 0;
+            OneByOnePhotoBox.ToolTip = hasLargerSize
+                ? "1 × 1 copies automatically use the picture selected for each package row"
+                : "Picture used for every 1 × 1 copy";
+            var showMixOptions = visibility == Visibility.Visible && OneByOneCheckBox.IsChecked == true;
+            TwoByTwoIncludeOneByOneCheckBox.Visibility = showMixOptions && TwoByTwoCheckBox.IsChecked == true
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+            OnePointFiveIncludeOneByOneCheckBox.Visibility = showMixOptions && OnePointFiveCheckBox.IsChecked == true
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+            PassportIncludeOneByOneCheckBox.Visibility = showMixOptions && PassportCheckBox.IsChecked == true
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        }
+
+        private void AssignDefaultRushIdSizePhotos()
+        {
+            if (!UsesMultiplePhotosInRushIdPackage() || Photos.Count == 0) return;
+            var candidates = GetSelectedPhotos();
+            if (candidates.Count == 0) candidates = Photos.ToList();
+            if (candidates.Count == 0) return;
+
+            _updatingRushIdPhotoAssignments = true;
+            try
+            {
+                AssignDefaultRushIdSizePhoto(TwoByTwoPhotoBox, TwoByTwoCheckBox, candidates);
+                AssignDefaultRushIdSizePhoto(OneByOnePhotoBox, OneByOneCheckBox, candidates);
+                AssignDefaultRushIdSizePhoto(OnePointFivePhotoBox, OnePointFiveCheckBox, candidates);
+                AssignDefaultRushIdSizePhoto(PassportPhotoBox, PassportCheckBox, candidates);
+            }
+            finally
+            {
+                _updatingRushIdPhotoAssignments = false;
+            }
+        }
+
+        private static void AssignDefaultRushIdSizePhoto(ComboBox photoBox, CheckBox sizeCheckBox,
+            IList<PhotoFile> candidates)
+        {
+            if (sizeCheckBox.IsChecked != true || photoBox.SelectedItem != null) return;
+            photoBox.SelectedItem = candidates[0];
+        }
+
+        private List<string> BuildRushIdMixedPhotoPaths()
+        {
+            var paths = new List<string>();
+            var package = SelectedPackage;
+            if (package == null || package.Items == null || package.Items.Count == 0)
+                return paths;
+
+            var hasLargerSize = FindAutomaticSize(package, 50.8, 50.8) != null ||
+                                FindAutomaticSize(package, 38.1, 38.1) != null ||
+                                FindAutomaticSize(package, 34.9758, 44.958) != null;
+            if (!AppendRushIdPackagePhotoPath(paths, FindAutomaticSize(package, 50.8, 50.8),
+                    TwoByTwoPhotoBox) ||
+                !AppendRushIdPackagePhotoPath(paths, FindAutomaticSize(package, 38.1, 38.1),
+                    OnePointFivePhotoBox) ||
+                !AppendRushIdPackagePhotoPath(paths, FindAutomaticSize(package, 34.9758, 44.958),
+                    PassportPhotoBox) ||
+                (!hasLargerSize && !AppendRushIdPackagePhotoPath(paths,
+                    FindAutomaticSize(package, 25.4, 25.4), OneByOnePhotoBox)))
+                return new List<string>();
+
+            return paths;
+        }
+
+        private static bool AppendRushIdPackagePhotoPath(ICollection<string> paths,
+            PhotoSizeItem size, ComboBox photoBox)
+        {
+            if (size == null) return true;
+            var photo = photoBox.SelectedItem as PhotoFile;
+            if (photo == null || string.IsNullOrWhiteSpace(photo.Path)) return false;
+            paths.Add(photo.Path);
+            return true;
+        }
+
+        private void AutomaticRushPhotoAssignment_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (_updatingRushIdPhotoAssignments || _updatingAutomaticRushControls ||
+                !UsesMultiplePhotosInRushIdPackage()) return;
+            RefreshAutomaticRushIdPreview();
+        }
+
+        private void AutomaticRushOneByOneMix_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_updatingAutomaticRushControls || SelectedPackage == null ||
+                !UsesMultiplePhotosInRushIdPackage()) return;
+            SelectedPackage.MixOneByOneWithTwoByTwo =
+                TwoByTwoIncludeOneByOneCheckBox.IsChecked == true;
+            SelectedPackage.MixOneByOneWithOnePointFive =
+                OnePointFiveIncludeOneByOneCheckBox.IsChecked == true;
+            SelectedPackage.MixOneByOneWithPassport =
+                PassportIncludeOneByOneCheckBox.IsChecked == true;
+            if (_savePackages != null) _savePackages();
+            RefreshAutomaticRushIdPreview();
         }
 
         private void AutomaticRushSize_Changed(object sender, RoutedEventArgs e)
@@ -255,6 +397,7 @@ namespace RCPhotoStudio.Views
             package.LayoutBoxes.Clear();
             package.PlacementMode = "Multiple Photos";
             EnsureFourTwoByTwoFit();
+            UpdateRushIdPhotoAssignmentControls();
             SaveAndRefreshAutomaticRushId();
         }
 
@@ -322,16 +465,23 @@ namespace RCPhotoStudio.Views
             var package = SelectedPackage;
             if (package == null || !package.AutoFlowNoGap) return;
 
-            var paths = _multiPhotoPaths == null
-                ? new List<string>()
-                : _multiPhotoPaths.Where(path => !string.IsNullOrWhiteSpace(path)).ToList();
+            var mixedPictures = UsesMultiplePhotosInRushIdPackage();
+            var paths = mixedPictures
+                ? BuildRushIdMixedPhotoPaths()
+                : _multiPhotoPaths == null
+                    ? new List<string>()
+                    : _multiPhotoPaths.Where(path => !string.IsNullOrWhiteSpace(path)).ToList();
             var paper = PaperDefinition.Find(package.PaperName);
             _multiPhotoLayout = PrintLayoutEngine.Create(package, paper, package.Orientation,
-                "Multiple Photos", paths, 1, package.Borderless);
+                GetRushIdPlacementMode(), paths,
+                mixedPictures ? Math.Max(1, _multiPhotoAmount) : 1,
+                package.Borderless);
             _multiPhotoPageIndex = 0;
-            _multiPhotoAmount = 1;
+            _multiPhotoAmount = mixedPictures
+                ? Math.Max(1, _multiPhotoAmount)
+                : 1;
             _photoPackageMultipleLayout = false;
-            if (paths.Count == 0) _multiPhotoPaths = null;
+            _multiPhotoPaths = paths.Count == 0 ? null : paths;
 
             AssignmentPreview.Package = null;
             AssignmentPreview.Package = package;
@@ -378,6 +528,9 @@ namespace RCPhotoStudio.Views
             {
                 PhotoList.SelectedIndex = 0;
             }
+            UpdateRushIdPhotoAssignmentControls();
+            AssignDefaultRushIdSizePhotos();
+            if (UsesMultiplePhotosInRushIdPackage()) RefreshAutomaticRushIdPreview();
             UpdateFillAllState();
             UpdateAssignmentStatus();
         }
@@ -388,6 +541,9 @@ namespace RCPhotoStudio.Views
             if (selected != null) Photos.Remove(selected);
             ClearMultiPhotoPreview();
             if (PhotoList.SelectedItem == null && Photos.Count > 0) PhotoList.SelectedIndex = 0;
+            UpdateRushIdPhotoAssignmentControls();
+            AssignDefaultRushIdSizePhotos();
+            if (UsesMultiplePhotosInRushIdPackage()) RefreshAutomaticRushIdPreview();
             UpdateFillAllState();
             UpdateAssignmentStatus();
         }
@@ -513,6 +669,12 @@ namespace RCPhotoStudio.Views
 
         private void PackageCountMinus_Click(object sender, RoutedEventArgs e)
         {
+            if (UsesMultiplePhotosInRushIdPackage())
+            {
+                _multiPhotoAmount = Math.Max(1, _multiPhotoAmount - 1);
+                UpdateRushIdMixedPackageAmount();
+                return;
+            }
             foreach (var selectedPhoto in GetSelectedPhotos())
                 selectedPhoto.PackageCount = Math.Max(1, selectedPhoto.PackageCount - 1);
             UpdateRushIdPackageCountControls();
@@ -522,6 +684,12 @@ namespace RCPhotoStudio.Views
 
         private void PackageCountPlus_Click(object sender, RoutedEventArgs e)
         {
+            if (UsesMultiplePhotosInRushIdPackage())
+            {
+                _multiPhotoAmount = Math.Min(999, _multiPhotoAmount + 1);
+                UpdateRushIdMixedPackageAmount();
+                return;
+            }
             foreach (var selectedPhoto in GetSelectedPhotos())
                 selectedPhoto.PackageCount = Math.Min(999, Math.Max(1, selectedPhoto.PackageCount) + 1);
             UpdateRushIdPackageCountControls();
@@ -678,6 +846,74 @@ namespace RCPhotoStudio.Views
             if (_savePackages != null) _savePackages();
         }
 
+        private static string NormalizeRushIdPhotoArrangement(string arrangement)
+        {
+            return string.Equals(arrangement, MultiplePhotosInRushIdPackage,
+                       StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(arrangement, LegacyMultiplePhotosInRushIdPackage,
+                       StringComparison.OrdinalIgnoreCase)
+                ? MultiplePhotosInRushIdPackage
+                : OnePhotoPerRushIdPackage;
+        }
+
+        private bool UsesMultiplePhotosInRushIdPackage()
+        {
+            return SelectedPackage != null && string.Equals(
+                NormalizeRushIdPhotoArrangement(SelectedPackage.RushIdPhotoArrangement),
+                MultiplePhotosInRushIdPackage, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private string GetRushIdPlacementMode()
+        {
+            return UsesMultiplePhotosInRushIdPackage()
+                ? RushIdMultiplePicturesPlacement
+                : "Multiple Photos";
+        }
+
+        private void RushIdPhotoArrangement_Changed(object sender, SelectionChangedEventArgs e)
+        {
+            if (_updatingRushIdPhotoArrangement ||
+                !string.Equals(_category, "Rush ID", StringComparison.OrdinalIgnoreCase) ||
+                SelectedPackage == null || RushIdPhotoArrangementBox.SelectedItem == null)
+                return;
+
+            var existingPaths = GetExistingRushIdPackagePaths()
+                .Where(path => !string.IsNullOrWhiteSpace(path))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var existingAmount = Math.Max(1, _multiPhotoAmount);
+            SelectedPackage.RushIdPhotoArrangement = NormalizeRushIdPhotoArrangement(
+                Convert.ToString(RushIdPhotoArrangementBox.SelectedItem));
+            if (_savePackages != null) _savePackages();
+
+            _multiPhotoAmount = UsesMultiplePhotosInRushIdPackage() ? existingAmount : 1;
+            UpdateRushIdPhotoAssignmentControls();
+            if (UsesMultiplePhotosInRushIdPackage())
+            {
+                AssignDefaultRushIdSizePhotos();
+                RefreshAutomaticRushIdPreview();
+            }
+            else if (existingPaths.Count > 0)
+            {
+                var paths = existingPaths.SelectMany(path =>
+                    {
+                        var photo = Photos.FirstOrDefault(item => string.Equals(item.Path, path,
+                            StringComparison.OrdinalIgnoreCase));
+                        return Enumerable.Repeat(path, photo == null ? 1 :
+                            Math.Max(1, Math.Min(999, photo.PackageCount)));
+                    }).ToList();
+                ShowMultiPhotoPreview(paths, _multiPhotoAmount);
+            }
+            else
+            {
+                RefreshAutomaticRushIdPreview();
+            }
+
+            UpdateRushIdPackageCountControls();
+            UpdateFillAllState();
+            UpdateAssignmentStatus();
+        }
+
         private void RushIdPhotoFit_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (_updatingRushIdPhotoFit ||
@@ -704,9 +940,24 @@ namespace RCPhotoStudio.Views
                 !string.Equals(_category, "Rush ID", StringComparison.OrdinalIgnoreCase)) return;
             int count;
             if (!int.TryParse(RushIdPackageCountBox.Text, out count) || count < 1 || count > 999) return;
+            if (UsesMultiplePhotosInRushIdPackage())
+            {
+                _multiPhotoAmount = count;
+                UpdateRushIdMixedPackageAmount(false);
+                return;
+            }
             foreach (var selectedPhoto in GetSelectedPhotos()) selectedPhoto.PackageCount = count;
             RefreshAutomaticRushIdSelectedPackageCounts();
             UpdateFillAllState();
+        }
+
+        private void UpdateRushIdMixedPackageAmount(bool updateControls = true)
+        {
+            if (_multiPhotoPaths != null && _multiPhotoPaths.Count > 0)
+                ShowMultiPhotoPreview(_multiPhotoPaths, _multiPhotoAmount);
+            if (updateControls) UpdateRushIdPackageCountControls();
+            UpdateFillAllState();
+            UpdateAssignmentStatus();
         }
 
         private void RefreshAutomaticRushIdSelectedPackageCounts()
@@ -724,14 +975,26 @@ namespace RCPhotoStudio.Views
                 !string.Equals(_category, "Rush ID", StringComparison.OrdinalIgnoreCase)) return;
 
             var selectedPhotos = GetSelectedPhotos();
-            var hasSelection = selectedPhotos.Count > 0;
+            var multiplePictures = UsesMultiplePhotosInRushIdPackage();
+            var hasSelection = multiplePictures ? Photos.Count > 0 : selectedPhotos.Count > 0;
             RushIdPackageCountBox.IsEnabled = hasSelection;
             RushIdPackageMinusButton.IsEnabled = hasSelection;
             RushIdPackagePlusButton.IsEnabled = hasSelection;
+            RushIdPackageCountLabel.Text = multiplePictures
+                ? "Copies of mixed package"
+                : "Packages for selected";
+            RushIdPackageCountHelp.Text = multiplePictures
+                ? "Repeats the complete mixed layout"
+                : "Updates the preview immediately";
+            RushIdPackageCountBox.ToolTip = multiplePictures
+                ? "Complete copies of the package containing all selected pictures"
+                : "Complete Rush ID packages for every currently selected image";
             _updatingRushIdPackageCount = true;
             try
             {
-                RushIdPackageCountBox.Text = !hasSelection
+                RushIdPackageCountBox.Text = multiplePictures
+                    ? Math.Max(1, _multiPhotoAmount).ToString()
+                    : !hasSelection
                     ? "1"
                     : selectedPhotos.All(photo => photo.PackageCount == selectedPhotos[0].PackageCount)
                         ? Math.Max(1, selectedPhotos[0].PackageCount).ToString()
@@ -753,12 +1016,13 @@ namespace RCPhotoStudio.Views
 
         private void FillAllBoxes_Click(object sender, RoutedEventArgs e)
         {
-            if (SelectedPackage == null || PhotoList.SelectedItems.Count == 0) return;
+            if (SelectedPackage == null) return;
             if (string.Equals(_category, "Rush ID", StringComparison.OrdinalIgnoreCase))
             {
                 ApplyRushIdSelectionToPreview();
                 return;
             }
+            if (PhotoList.SelectedItems.Count == 0) return;
 
             var selectedPhotos = GetSelectedPhotos();
             var selectedPaths = selectedPhotos.Select(photo => photo.Path).ToList();
@@ -872,16 +1136,29 @@ namespace RCPhotoStudio.Views
         private void ApplyRushIdSelectionToPreview()
         {
             if (!string.Equals(_category, "Rush ID", StringComparison.OrdinalIgnoreCase) ||
-                SelectedPackage == null || PhotoList == null || PhotoList.SelectedItems.Count == 0)
+                SelectedPackage == null || PhotoList == null)
                 return;
+
+            var multiplePictures = UsesMultiplePhotosInRushIdPackage();
+            if (multiplePictures)
+            {
+                var mixedPaths = BuildRushIdMixedPhotoPaths();
+                if (mixedPaths.Count == 0) return;
+                SelectedPackage.PrintAmount = 1;
+                if (_savePackages != null) _savePackages();
+                ShowMultiPhotoPreview(mixedPaths, _multiPhotoAmount);
+                UpdateFillAllState();
+                UpdateAssignmentStatus();
+                return;
+            }
+
+            if (PhotoList.SelectedItems.Count == 0) return;
 
             var selectedPhotos = GetSelectedPhotos()
                 .Where(photo => photo != null && !string.IsNullOrWhiteSpace(photo.Path))
                 .ToList();
-            var selectedPaths = selectedPhotos
-                .SelectMany(photo => Enumerable.Repeat(photo.Path,
-                    Math.Max(1, Math.Min(999, photo.PackageCount))))
-                .ToList();
+            var selectedPaths = selectedPhotos.SelectMany(photo => Enumerable.Repeat(photo.Path,
+                Math.Max(1, Math.Min(999, photo.PackageCount)))).ToList();
             if (selectedPaths.Count == 0) return;
 
             var existingPaths = GetExistingRushIdPackagePaths();
@@ -938,7 +1215,7 @@ namespace RCPhotoStudio.Views
             var package = SelectedPackage;
             var paper = PaperDefinition.Find(package.PaperName);
             _multiPhotoLayout = PrintLayoutEngine.Create(package, paper, package.Orientation,
-                "Multiple Photos", _multiPhotoPaths, _multiPhotoAmount, package.Borderless);
+                GetRushIdPlacementMode(), _multiPhotoPaths, _multiPhotoAmount, package.Borderless);
 
             AssignmentPreview.Visibility = Visibility.Collapsed;
             MultiPhotoPreview.Visibility = Visibility.Visible;
@@ -1099,6 +1376,16 @@ namespace RCPhotoStudio.Views
             SelectedPackageTitle.Text = SelectedPackage == null ? "No package selected" : SelectedPackage.Name;
             if (string.Equals(_category, "Rush ID", StringComparison.OrdinalIgnoreCase) && SelectedPackage != null)
             {
+                SelectedPackage.RushIdPhotoArrangement = NormalizeRushIdPhotoArrangement(
+                    SelectedPackage.RushIdPhotoArrangement);
+                _updatingRushIdPhotoArrangement = true;
+                try
+                {
+                    RushIdPhotoArrangementBox.SelectedItem = SelectedPackage.RushIdPhotoArrangement;
+                }
+                finally { _updatingRushIdPhotoArrangement = false; }
+                UpdateRushIdPhotoAssignmentControls();
+                AssignDefaultRushIdSizePhotos();
                 var rushFitMode = NormalizePhotoFitMode(SelectedPackage.PhotoFitMode);
                 SelectedPackage.PhotoFitMode = rushFitMode;
                 _updatingRushIdPhotoFit = true;
@@ -1251,7 +1538,12 @@ namespace RCPhotoStudio.Views
             var totalCopies = selectedPhotos.Sum(photo => Math.Max(1, photo.CopyCount));
             var isPhotoCategory = string.Equals(_category, "Photo", StringComparison.OrdinalIgnoreCase);
             var isRushIdCategory = string.Equals(_category, "Rush ID", StringComparison.OrdinalIgnoreCase);
-            var totalRushIdPackages = selectedPhotos.Sum(photo => Math.Max(1, photo.PackageCount));
+            var multiplePicturesInRushIdPackage = isRushIdCategory && UsesMultiplePhotosInRushIdPackage();
+            var hasMixedPhotoAssignments = multiplePicturesInRushIdPackage &&
+                BuildRushIdMixedPhotoPaths().Count > 0;
+            var totalRushIdPackages = multiplePicturesInRushIdPackage
+                ? Math.Max(1, _multiPhotoAmount)
+                : selectedPhotos.Sum(photo => Math.Max(1, photo.PackageCount));
             var hasExistingRushIdPackages = isRushIdCategory &&
                 ((_multiPhotoPaths != null && _multiPhotoPaths.Count > 0) ||
                  (AssignmentPreview != null && AssignmentPreview.AssignedCount > 0));
@@ -1260,11 +1552,18 @@ namespace RCPhotoStudio.Views
                  (AssignmentPreview != null && AssignmentPreview.AssignedCount > 0));
             var hasAutomaticSizes = SelectedPackage == null || !SelectedPackage.AutoFlowNoGap ||
                                     (SelectedPackage.Items != null && SelectedPackage.Items.Count > 0);
-            FillAllBoxesButton.IsEnabled = SelectedPackage != null && selectedCount > 0 && hasAutomaticSizes;
-            FillAllBoxesButton.Content = selectedCount == 0
-                ? "Select Pictures to Fill"
-                : !hasAutomaticSizes
+            FillAllBoxesButton.IsEnabled = SelectedPackage != null && hasAutomaticSizes &&
+                (multiplePicturesInRushIdPackage ? hasMixedPhotoAssignments : selectedCount > 0);
+            FillAllBoxesButton.Content = !hasAutomaticSizes
                     ? "Select at Least One ID Size"
+                : multiplePicturesInRushIdPackage
+                    ? !hasMixedPhotoAssignments
+                        ? "Choose a Picture for Each ID Size"
+                        : string.Format("{0} {1} Mixed Rush ID Package{2}",
+                        hasExistingRushIdPackages ? "Update" : "Fill", totalRushIdPackages,
+                        totalRushIdPackages == 1 ? "" : "s")
+                : selectedCount == 0
+                    ? "Select Pictures to Fill"
                 : SelectedPackage != null && SelectedPackage.AutoFlowNoGap
                     ? string.Format("{0} {1} Rush ID Package{2}",
                         hasExistingRushIdPackages ? "Update" : "Fill", totalRushIdPackages,
@@ -1284,7 +1583,9 @@ namespace RCPhotoStudio.Views
             FillAllBoxesButton.ToolTip = hasExistingPhotoAssignments
                 ? "Keep existing pictures and continue into the next empty box or page"
                 : isRushIdCategory
-                    ? hasExistingRushIdPackages
+                    ? multiplePicturesInRushIdPackage
+                        ? "Use the picture chosen for each package row; 1 × 1 copies follow that row's picture"
+                        : hasExistingRushIdPackages
                         ? "Keep existing Rush ID packages and append duplicates for the selected image"
                         : "Create the chosen number of complete packages for each selected image"
                 : selectedCount <= 1 && totalCopies <= 1
@@ -1312,6 +1613,10 @@ namespace RCPhotoStudio.Views
                 AssignmentStatus.Text = _photoPackageMultipleLayout
                     ? string.Format("{0} picture copy/copies • one per picture box across {1} page(s)",
                         _multiPhotoPaths.Count, _multiPhotoLayout.PageCount)
+                    : UsesMultiplePhotosInRushIdPackage()
+                    ? string.Format("{0} picture(s) in {1} mixed Rush ID package(s) across {2} page(s)",
+                        _multiPhotoPaths.Distinct(StringComparer.OrdinalIgnoreCase).Count(),
+                        _multiPhotoAmount, _multiPhotoLayout.PageCount)
                     : string.Format("{0} Rush ID package(s) across {1} page(s)",
                         _multiPhotoPaths.Count * _multiPhotoAmount, _multiPhotoLayout.PageCount);
             else if (SelectedPackage != null && SelectedPackage.AutoFlowNoGap && _multiPhotoLayout != null)
@@ -1459,7 +1764,11 @@ namespace RCPhotoStudio.Views
             PrintWorkspaceWindow.PrintUsingSavedSettings(package,
                 photoPaths, slotPhotos, this, useMultiplePhotos,
                 useMultiplePhotos ? (int?)_multiPhotoAmount : null,
-                _photoPackageMultipleLayout ? "Photo Package Multiple" : null,
+                _photoPackageMultipleLayout
+                    ? "Photo Package Multiple"
+                    : UsesMultiplePhotosInRushIdPackage()
+                        ? RushIdMultiplePicturesPlacement
+                        : null,
                 placementOffsets, placementFitModes, placementPictureBorders);
         }
 

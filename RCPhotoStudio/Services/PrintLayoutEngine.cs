@@ -74,7 +74,7 @@ namespace RCPhotoStudio.Services
 
             if (package.AutoFlowNoGap &&
                 string.Equals(package.Category, "Rush ID", StringComparison.OrdinalIgnoreCase))
-                return CreateAutomaticRushIdLayout(package, result, photoPaths, amount,
+                return CreateAutomaticRushIdLayout(package, result, placementMode, photoPaths, amount,
                     pageWidth, pageHeight, margin);
 
             if (string.Equals(placementMode, "Photo Package Multiple", StringComparison.OrdinalIgnoreCase))
@@ -178,14 +178,16 @@ namespace RCPhotoStudio.Services
         }
 
         private static PrintLayout CreateAutomaticRushIdLayout(PhotoPackage package, PrintLayout result,
-            IList<string> photoPaths, int amount, double pageWidth, double pageHeight, double margin)
+            string placementMode, IList<string> photoPaths, int amount,
+            double pageWidth, double pageHeight, double margin)
         {
             var sizes = package.Items == null
                 ? new List<PhotoSizeItem>()
                 : package.Items.Where(item => item != null && item.Quantity > 0 &&
                     item.WidthMm > 0 && item.HeightMm > 0)
-                    // The compact 1 x 1 packing fills space beside the preceding larger row.
-                    .OrderBy(item => IsOneByOneSize(item) ? 1 : 0)
+                    // Keep 1 x 1 immediately after 2 x 2 so it fills the open space
+                    // beside the 2 x 2 row before the remaining sizes are laid out.
+                    .OrderBy(GetAutomaticRushIdSizeOrder)
                     .ToList();
             if (sizes.Count == 0)
             {
@@ -196,16 +198,45 @@ namespace RCPhotoStudio.Services
                 .Where(path => !string.IsNullOrWhiteSpace(path)).ToList();
             if (pictures.Count == 0) pictures.Add(null);
 
-            var requested = new List<Tuple<PhotoSizeItem, string, int>>();
+            var requested = new List<Tuple<PhotoSizeItem, string, int, double>>();
             var packageIndex = 0;
+            var mixImagesByPackage = string.Equals(placementMode,
+                "Rush ID Multiple Pictures", StringComparison.OrdinalIgnoreCase);
             for (var set = 0; set < Math.Max(1, amount); set++)
             {
+                if (mixImagesByPackage)
+                {
+                    var pictureIndex = 0;
+                    var oneByOne = sizes.FirstOrDefault(IsOneByOneSize);
+                    var primarySizes = sizes.Where(size => !IsOneByOneSize(size)).ToList();
+                    if (primarySizes.Count == 0 && oneByOne != null) primarySizes.Add(oneByOne);
+                    foreach (var primarySize in primarySizes)
+                    {
+                        var groupSizes = new List<PhotoSizeItem> { primarySize };
+                        if (oneByOne != null && !ReferenceEquals(primarySize, oneByOne) &&
+                            ShouldMixOneByOneWithSize(package, primarySize))
+                            groupSizes.Add(oneByOne);
+                        var picture = pictures[pictureIndex++ % pictures.Count];
+                        var groupPackageHeight = CalculateAutomaticRushIdPackageHeight(
+                            groupSizes, Math.Min(pageWidth - margin, margin + 203.2) - margin);
+                        foreach (var size in groupSizes)
+                        {
+                            for (var copy = 0; copy < size.Quantity; copy++)
+                                requested.Add(Tuple.Create(size, picture, packageIndex, groupPackageHeight));
+                        }
+                        packageIndex++;
+                    }
+                    continue;
+                }
+
+                var sharedPackageHeight = CalculateAutomaticRushIdPackageHeight(sizes,
+                    Math.Min(pageWidth - margin, margin + 203.2) - margin);
                 foreach (var picture in pictures)
                 {
                     foreach (var size in sizes)
                     {
                         for (var copy = 0; copy < size.Quantity; copy++)
-                            requested.Add(Tuple.Create(size, picture, packageIndex));
+                            requested.Add(Tuple.Create(size, picture, packageIndex, sharedPackageHeight));
                     }
                     packageIndex++;
                 }
@@ -225,7 +256,6 @@ namespace RCPhotoStudio.Services
             const double eightInchesMm = 203.2;
             var right = Math.Min(pageWidth - margin, margin + eightInchesMm);
             var bottom = pageHeight - margin;
-            var packageHeight = CalculateAutomaticRushIdPackageHeight(sizes, right - margin);
             var usablePageHeight = bottom - margin;
 
             foreach (var request in requested)
@@ -245,8 +275,8 @@ namespace RCPhotoStudio.Services
                     mixedOneByOneHorizontal = false;
                     previousSize = null;
 
-                    if (packageHeight <= usablePageHeight + 0.01 &&
-                        y + packageHeight > bottom + 0.01)
+                    if (request.Item4 <= usablePageHeight + 0.01 &&
+                        y + request.Item4 > bottom + 0.01)
                     {
                         page++;
                         y = margin;
@@ -490,6 +520,31 @@ namespace RCPhotoStudio.Services
         {
             return size != null && Math.Abs(size.WidthMm - 25.4) < 0.05 &&
                    Math.Abs(size.HeightMm - 25.4) < 0.05;
+        }
+
+        private static int GetAutomaticRushIdSizeOrder(PhotoSizeItem size)
+        {
+            if (size == null) return 4;
+            if (Math.Abs(size.WidthMm - 50.8) < 0.05 && Math.Abs(size.HeightMm - 50.8) < 0.05)
+                return 0;
+            if (IsOneByOneSize(size)) return 1;
+            if (Math.Abs(size.WidthMm - 38.1) < 0.05 && Math.Abs(size.HeightMm - 38.1) < 0.05)
+                return 2;
+            if (Math.Abs(size.WidthMm - 34.9758) < 0.05 && Math.Abs(size.HeightMm - 44.958) < 0.05)
+                return 3;
+            return 4;
+        }
+
+        private static bool ShouldMixOneByOneWithSize(PhotoPackage package, PhotoSizeItem size)
+        {
+            if (package == null || size == null) return false;
+            if (Math.Abs(size.WidthMm - 50.8) < 0.05 && Math.Abs(size.HeightMm - 50.8) < 0.05)
+                return package.MixOneByOneWithTwoByTwo;
+            if (Math.Abs(size.WidthMm - 38.1) < 0.05 && Math.Abs(size.HeightMm - 38.1) < 0.05)
+                return package.MixOneByOneWithOnePointFive;
+            if (Math.Abs(size.WidthMm - 34.9758) < 0.05 && Math.Abs(size.HeightMm - 44.958) < 0.05)
+                return package.MixOneByOneWithPassport;
+            return false;
         }
 
         private static PrintLayout CreatePhotoPackageMultipleLayout(PhotoPackage package, PaperDefinition paper,

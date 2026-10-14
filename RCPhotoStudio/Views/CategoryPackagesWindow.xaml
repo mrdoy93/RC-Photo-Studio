@@ -98,82 +98,136 @@
                         </Grid>
                     </Grid>
 
-                    <ScrollViewer x:Name="AutomaticRushIdPanel" Visibility="Collapsed"
-                                  VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                        <StackPanel Margin="4,0">
-                            <TextBlock Text="Automatic package" FontSize="17" FontWeight="SemiBold"/>
-                            <TextBlock Text="Select each ID size and enter how many pictures you need."
-                                       TextWrapping="Wrap" Margin="0,3,0,14"
-                                       Foreground="{DynamicResource MutedTextBrush}" FontSize="11"/>
+                    <Border x:Name="AutomaticRushIdPanel" Visibility="Collapsed">
+                        <Grid Margin="2,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
 
-                            <TextBlock Text="Paper" FontSize="11" Margin="0,0,0,4"/>
-                            <ComboBox x:Name="AutomaticRushPaperBox" Height="30" Margin="0,0,0,10"
-                                      SelectionChanged="AutomaticRushPaper_Changed"/>
-                            <TextBlock Text="Orientation" FontSize="11" Margin="0,0,0,4"/>
-                            <ComboBox x:Name="AutomaticRushOrientationBox" Height="30" Margin="0,0,0,14"
-                                      SelectionChanged="AutomaticRushOrientation_Changed"/>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Automatic package" FontSize="16" FontWeight="SemiBold"/>
+                                <TextBlock Text="Select each ID size and enter how many pictures you need."
+                                           TextWrapping="Wrap" Margin="0,2,0,7"
+                                           Foreground="{DynamicResource MutedTextBrush}" FontSize="10"/>
+                            </StackPanel>
 
-                            <Border Padding="9" Margin="0,0,0,8" Background="{DynamicResource SurfaceAltBrush}"
+                            <Grid Grid.Row="1" Margin="0,0,0,7" VerticalAlignment="Center">
+                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                <TextBlock Text="Paper" FontSize="10" Margin="0,0,4,2"/>
+                                <TextBlock Grid.Column="1" Text="Orientation" FontSize="10" Margin="4,0,0,2"/>
+                                <ComboBox x:Name="AutomaticRushPaperBox" Grid.Row="1" Height="27" MinHeight="27" FontSize="10" Margin="0,0,4,0"
+                                          SelectionChanged="AutomaticRushPaper_Changed"/>
+                                <ComboBox x:Name="AutomaticRushOrientationBox" Grid.Row="1" Grid.Column="1" Height="27" MinHeight="27" FontSize="10" Margin="4,0,0,0"
+                                          SelectionChanged="AutomaticRushOrientation_Changed"/>
+                            </Grid>
+
+                            <Border Grid.Row="2" Padding="5" Margin="0,0,0,4" Background="{DynamicResource SurfaceAltBrush}"
                                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6">
-                                <Grid>
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="58"/></Grid.ColumnDefinitions>
+                                <Grid VerticalAlignment="Center">
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="44"/></Grid.ColumnDefinitions>
                                     <CheckBox x:Name="TwoByTwoCheckBox" Content="2 × 2 inches" VerticalAlignment="Center"
                                               Checked="AutomaticRushSize_Changed" Unchecked="AutomaticRushSize_Changed"/>
-                                    <TextBox x:Name="TwoByTwoQuantityBox" Grid.Column="1" Text="1" Height="27"
+                                    <TextBox x:Name="TwoByTwoQuantityBox" Grid.Column="1" Text="1" Height="24" Padding="4,1" FontSize="11"
                                              TextAlignment="Center" VerticalContentAlignment="Center"
                                              TextChanged="AutomaticRushQuantity_Changed" ToolTip="Quantity"/>
+                                    <ComboBox x:Name="TwoByTwoPhotoBox" Grid.Row="1" Grid.ColumnSpan="2" Height="24" MinHeight="24" FontSize="10" Margin="0,3,0,0"
+                                              ItemsSource="{Binding Photos}" DisplayMemberPath="Name"
+                                              SelectionChanged="AutomaticRushPhotoAssignment_Changed"
+                                              ToolTip="Picture used for every 2 × 2 copy" Visibility="Collapsed"/>
+                                    <CheckBox x:Name="TwoByTwoIncludeOneByOneCheckBox" Grid.Row="2" Grid.ColumnSpan="2"
+                                              Content="Add 1 × 1 to this package" FontSize="9" Margin="0,3,0,0"
+                                              Checked="AutomaticRushOneByOneMix_Changed" Unchecked="AutomaticRushOneByOneMix_Changed"
+                                              Visibility="Collapsed"/>
                                 </Grid>
                             </Border>
 
-                            <Border Padding="9" Margin="0,0,0,8" Background="{DynamicResource SurfaceAltBrush}"
+                            <Border Grid.Row="3" Padding="5" Margin="0,0,0,4" Background="{DynamicResource SurfaceAltBrush}"
                                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6">
-                                <Grid>
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="58"/></Grid.ColumnDefinitions>
+                                <Grid VerticalAlignment="Center">
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="44"/></Grid.ColumnDefinitions>
                                     <CheckBox x:Name="OneByOneCheckBox" Content="1 × 1 inch" VerticalAlignment="Center"
                                               Checked="AutomaticRushSize_Changed" Unchecked="AutomaticRushSize_Changed"/>
-                                    <TextBox x:Name="OneByOneQuantityBox" Grid.Column="1" Text="1" Height="27"
+                                    <TextBox x:Name="OneByOneQuantityBox" Grid.Column="1" Text="1" Height="24" Padding="4,1" FontSize="11"
                                              TextAlignment="Center" VerticalContentAlignment="Center"
                                              TextChanged="AutomaticRushQuantity_Changed" ToolTip="Quantity"/>
+                                    <Grid Grid.Row="1" Grid.ColumnSpan="2" Margin="0,3,0,0">
+                                        <ComboBox x:Name="OneByOnePhotoBox" Height="24" MinHeight="24" FontSize="10"
+                                                  ItemsSource="{Binding Photos}" DisplayMemberPath="Name"
+                                                  SelectionChanged="AutomaticRushPhotoAssignment_Changed"
+                                                  ToolTip="Picture used for every 1 × 1 copy" Visibility="Collapsed"/>
+                                        <TextBlock x:Name="OneByOnePhotoHint" Text="Uses each package row's picture"
+                                                   FontSize="9" VerticalAlignment="Center" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource MutedTextBrush}" Visibility="Collapsed"/>
+                                    </Grid>
                                 </Grid>
                             </Border>
 
-                            <Border Padding="9" Margin="0,0,0,8" Background="{DynamicResource SurfaceAltBrush}"
+                            <Border Grid.Row="4" Padding="5" Margin="0,0,0,4" Background="{DynamicResource SurfaceAltBrush}"
                                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6">
-                                <Grid>
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="58"/></Grid.ColumnDefinitions>
+                                <Grid VerticalAlignment="Center">
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="44"/></Grid.ColumnDefinitions>
                                     <CheckBox x:Name="OnePointFiveCheckBox" Content="1.5 × 1.5 inches" VerticalAlignment="Center"
                                               Checked="AutomaticRushSize_Changed" Unchecked="AutomaticRushSize_Changed"/>
-                                    <TextBox x:Name="OnePointFiveQuantityBox" Grid.Column="1" Text="1" Height="27"
+                                    <TextBox x:Name="OnePointFiveQuantityBox" Grid.Column="1" Text="1" Height="24" Padding="4,1" FontSize="11"
                                              TextAlignment="Center" VerticalContentAlignment="Center"
                                              TextChanged="AutomaticRushQuantity_Changed" ToolTip="Quantity"/>
+                                    <ComboBox x:Name="OnePointFivePhotoBox" Grid.Row="1" Grid.ColumnSpan="2" Height="24" MinHeight="24" FontSize="10" Margin="0,3,0,0"
+                                              ItemsSource="{Binding Photos}" DisplayMemberPath="Name"
+                                              SelectionChanged="AutomaticRushPhotoAssignment_Changed"
+                                              ToolTip="Picture used for every 1.5 × 1.5 copy" Visibility="Collapsed"/>
+                                    <CheckBox x:Name="OnePointFiveIncludeOneByOneCheckBox" Grid.Row="2" Grid.ColumnSpan="2"
+                                              Content="Add 1 × 1 to this package" FontSize="9" Margin="0,3,0,0"
+                                              Checked="AutomaticRushOneByOneMix_Changed" Unchecked="AutomaticRushOneByOneMix_Changed"
+                                              Visibility="Collapsed"/>
                                 </Grid>
                             </Border>
 
-                            <Border Padding="9" Margin="0,0,0,8" Background="{DynamicResource SurfaceAltBrush}"
+                            <Border Grid.Row="5" Padding="5" Margin="0,0,0,4" Background="{DynamicResource SurfaceAltBrush}"
                                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6">
-                                <Grid>
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="58"/></Grid.ColumnDefinitions>
+                                <Grid VerticalAlignment="Center">
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="44"/></Grid.ColumnDefinitions>
                                     <StackPanel VerticalAlignment="Center">
                                         <CheckBox x:Name="PassportCheckBox" Content="Passport size"
                                                   Checked="AutomaticRushSize_Changed" Unchecked="AutomaticRushSize_Changed"/>
-                                        <TextBlock Text="1.377 × 1.77 inches" FontSize="9" Margin="20,2,0,0"
+                                        <TextBlock Text="1.377 × 1.77 inches" FontSize="8" Margin="20,1,0,0"
                                                    Foreground="{DynamicResource MutedTextBrush}"/>
                                     </StackPanel>
-                                    <TextBox x:Name="PassportQuantityBox" Grid.Column="1" Text="1" Height="27"
+                                    <TextBox x:Name="PassportQuantityBox" Grid.Column="1" Text="1" Height="24" Padding="4,1" FontSize="11"
                                              TextAlignment="Center" VerticalContentAlignment="Center"
                                              TextChanged="AutomaticRushQuantity_Changed" ToolTip="Quantity"/>
+                                    <ComboBox x:Name="PassportPhotoBox" Grid.Row="1" Grid.ColumnSpan="2" Height="24" MinHeight="24" FontSize="10" Margin="0,3,0,0"
+                                              ItemsSource="{Binding Photos}" DisplayMemberPath="Name"
+                                              SelectionChanged="AutomaticRushPhotoAssignment_Changed"
+                                              ToolTip="Picture used for every passport-size copy" Visibility="Collapsed"/>
+                                    <CheckBox x:Name="PassportIncludeOneByOneCheckBox" Grid.Row="2" Grid.ColumnSpan="2"
+                                              Content="Add 1 × 1 to this package" FontSize="9" Margin="0,3,0,0"
+                                              Checked="AutomaticRushOneByOneMix_Changed" Unchecked="AutomaticRushOneByOneMix_Changed"
+                                              Visibility="Collapsed"/>
                                 </Grid>
                             </Border>
 
-                            <Button Content="Reset Sizes" Height="32" Margin="0,2,0,8"
+                            <Button Grid.Row="7" Content="Reset Sizes" Height="27" Padding="8,2" FontSize="11" Margin="0,3"
                                     Click="ResetAutomaticRushSizes_Click"
                                     ToolTip="Uncheck every size and reset all quantities to 1"/>
 
-                            <TextBlock Text="The printable width is 8 inches. Mixed 1 × 1 pictures fill space beside 2 × 2 pictures first, then remaining 1 × 1 pictures continue across full rows below."
-                                       TextWrapping="Wrap" Margin="1,6,1,0"
-                                       Foreground="{DynamicResource MutedTextBrush}" FontSize="10"/>
-                        </StackPanel>
-                    </ScrollViewer>
+                            <TextBlock Grid.Row="8" Text="8-inch printable width. Mixed 1 × 1 copies fill beside their package row first, then continue below."
+                                       TextWrapping="Wrap" Margin="1,2,1,0" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource MutedTextBrush}" FontSize="9"/>
+                        </Grid>
+                    </Border>
                 </Grid>
             </Border>
 
@@ -256,17 +310,26 @@
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Text="Packages for selected" FontSize="11"/>
-                                    <TextBlock Text="Updates the preview immediately" FontSize="9"
-                                               Foreground="{DynamicResource MutedTextBrush}"/>
+                                <StackPanel VerticalAlignment="Center" Margin="0,0,8,0">
+                                    <TextBlock Text="Photo arrangement" FontSize="11" TextWrapping="Wrap"/>
+                                    <TextBlock Text="How pictures fill a Rush ID package" FontSize="9"
+                                               TextWrapping="Wrap" Foreground="{DynamicResource MutedTextBrush}"/>
                                 </StackPanel>
-                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                <ComboBox x:Name="RushIdPhotoArrangementBox" Grid.Column="1" Width="190" Height="29"
+                                          SelectionChanged="RushIdPhotoArrangement_Changed"
+                                          ToolTip="Repeat one picture through each package or place several pictures in one package"/>
+                                <StackPanel Grid.Row="1" VerticalAlignment="Center" Margin="0,7,8,1">
+                                    <TextBlock x:Name="RushIdPackageCountLabel" Text="Packages for selected" FontSize="11" TextWrapping="Wrap"/>
+                                    <TextBlock x:Name="RushIdPackageCountHelp" Text="Updates the preview immediately" FontSize="9"
+                                               TextWrapping="Wrap" Foreground="{DynamicResource MutedTextBrush}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,7,0,1">
                                     <Button x:Name="RushIdPackageMinusButton" Content="−" Width="28" Height="27" Padding="0"
                                             Click="PackageCountMinus_Click"/>
                                     <TextBox x:Name="RushIdPackageCountBox" Text="1" Width="44" Height="27" Margin="5,0"
@@ -276,20 +339,20 @@
                                     <Button x:Name="RushIdPackagePlusButton" Content="+" Width="28" Height="27" Padding="0"
                                             Click="PackageCountPlus_Click"/>
                                 </StackPanel>
-                                <StackPanel Grid.Row="1" Margin="0,7,0,1" VerticalAlignment="Center">
-                                    <TextBlock Text="Picture border" FontSize="11"/>
+                                <StackPanel Grid.Row="2" Margin="0,7,0,1" VerticalAlignment="Center">
+                                    <TextBlock Text="Picture border" FontSize="11" TextWrapping="Wrap"/>
                                     <TextBlock Text="Applies to preview and print" FontSize="9"
-                                               Foreground="{DynamicResource MutedTextBrush}"/>
+                                               TextWrapping="Wrap" Foreground="{DynamicResource MutedTextBrush}"/>
                                 </StackPanel>
-                                <ComboBox x:Name="RushIdPictureBorderBox" Grid.Row="1" Grid.Column="1" Width="105" Height="29"
+                                <ComboBox x:Name="RushIdPictureBorderBox" Grid.Row="2" Grid.Column="1" Width="105" Height="29"
                                           Margin="0,7,0,1" SelectionChanged="RushIdPictureBorder_Changed"
                                           ToolTip="Choose whether a border is printed around every Rush ID picture"/>
-                                <StackPanel Grid.Row="2" Margin="0,7,0,1" VerticalAlignment="Center">
-                                    <TextBlock Text="Picture fit" FontSize="11"/>
+                                <StackPanel Grid.Row="3" Margin="0,7,0,1" VerticalAlignment="Center">
+                                    <TextBlock Text="Picture fit" FontSize="11" TextWrapping="Wrap"/>
                                     <TextBlock Text="Applies to every Rush ID picture" FontSize="9"
-                                               Foreground="{DynamicResource MutedTextBrush}"/>
+                                               TextWrapping="Wrap" Foreground="{DynamicResource MutedTextBrush}"/>
                                 </StackPanel>
-                                <ComboBox x:Name="RushIdPhotoFitBox" Grid.Row="2" Grid.Column="1" Width="105" Height="29"
+                                <ComboBox x:Name="RushIdPhotoFitBox" Grid.Row="3" Grid.Column="1" Width="105" Height="29"
                                           Margin="0,7,0,1" SelectionChanged="RushIdPhotoFit_SelectionChanged"
                                           ToolTip="Choose Crop or Stretch for the Rush ID package"/>
                             </Grid>

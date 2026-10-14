@@ -21,11 +21,15 @@ namespace RCPhotoStudio.Services
                 PaperName = "A4",
                 Orientation = "Portrait",
                 PlacementMode = "Multiple Photos",
+                RushIdPhotoArrangement = "One photo per package",
+                MixOneByOneWithTwoByTwo = true,
+                MixOneByOneWithOnePointFive = false,
+                MixOneByOneWithPassport = false,
                 PhotoFitMode = "Crop",
                 PrintAmount = 1,
                 PrintPictureBorder = true,
                 AutoFlowNoGap = true,
-                AutomaticRushLayoutVersion = 3,
+                AutomaticRushLayoutVersion = 4,
                 Items = new ObservableCollection<PhotoSizeItem>(),
                 LayoutBoxes = new ObservableCollection<PackageLayoutBox>()
             };
@@ -59,6 +63,11 @@ namespace RCPhotoStudio.Services
                 automatic.Category = "Rush ID";
                 automatic.CustomKind = "Rush ID";
                 automatic.PlacementMode = "Multiple Photos";
+                if (string.IsNullOrWhiteSpace(automatic.RushIdPhotoArrangement))
+                {
+                    automatic.RushIdPhotoArrangement = "One photo per package";
+                    changed = true;
+                }
                 automatic.AutoFlowNoGap = true;
                 if (automatic.AutomaticRushLayoutVersion < 2)
                 {
@@ -71,6 +80,14 @@ namespace RCPhotoStudio.Services
                 {
                     automatic.PrintPictureBorder = true;
                     automatic.AutomaticRushLayoutVersion = 3;
+                    changed = true;
+                }
+                if (automatic.AutomaticRushLayoutVersion < 4)
+                {
+                    automatic.MixOneByOneWithTwoByTwo = true;
+                    automatic.MixOneByOneWithOnePointFive = false;
+                    automatic.MixOneByOneWithPassport = false;
+                    automatic.AutomaticRushLayoutVersion = 4;
                     changed = true;
                 }
                 if (automatic.Items == null)

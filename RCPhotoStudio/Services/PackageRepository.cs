@@ -40,6 +40,11 @@ namespace RCPhotoStudio.Services
                                 if (package.LayoutBoxes == null) package.LayoutBoxes = new ObservableCollection<PackageLayoutBox>();
                                 if (string.IsNullOrWhiteSpace(package.MeasurementUnit)) package.MeasurementUnit = "in";
                                 if (string.IsNullOrWhiteSpace(package.PhotoFitMode)) package.PhotoFitMode = "Crop";
+                                if (string.IsNullOrWhiteSpace(package.RushIdPhotoArrangement))
+                                {
+                                    package.RushIdPhotoArrangement = "One photo per package";
+                                    packagesChanged = true;
+                                }
                                 if (package.PrintAmount <= 0) package.PrintAmount = 1;
                                 if (package.PrinterSettingsVersion <= 0)
                                 {
@@ -49,7 +54,7 @@ namespace RCPhotoStudio.Services
                                 }
                                 if (package.PrinterCopies <= 0) package.PrinterCopies = 1;
                             }
-                            packagesChanged = AutomaticRushIdPackage.Normalize(packages);
+                            packagesChanged = AutomaticRushIdPackage.Normalize(packages) || packagesChanged;
                         }
                     }
                     if (packages != null)

@@ -678,7 +678,8 @@ namespace RCPhotoStudio.Views
         private static bool IsRushIdMultiple(PhotoPackage package, string placement)
         {
             return IsRushId(package) &&
-                   string.Equals(placement, "Multiple Photos", StringComparison.OrdinalIgnoreCase);
+                   (string.Equals(placement, "Multiple Photos", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(placement, "Rush ID Multiple Pictures", StringComparison.OrdinalIgnoreCase));
         }
 
         private static bool IsRushId(PhotoPackage package)

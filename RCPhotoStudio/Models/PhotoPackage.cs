@@ -16,6 +16,8 @@ namespace RCPhotoStudio.Models
             PaperName = "A4";
             Orientation = "Portrait";
             PlacementMode = "Repeat One Photo";
+            RushIdPhotoArrangement = "One photo per package";
+            MixOneByOneWithTwoByTwo = true;
             PhotoFitMode = "Crop";
             MeasurementUnit = "in";
             PrintAmount = 1;
@@ -36,6 +38,10 @@ namespace RCPhotoStudio.Models
         [DataMember] public string PaperName { get; set; }
         [DataMember] public string Orientation { get; set; }
         [DataMember] public string PlacementMode { get; set; }
+        [DataMember] public string RushIdPhotoArrangement { get; set; }
+        [DataMember] public bool MixOneByOneWithTwoByTwo { get; set; }
+        [DataMember] public bool MixOneByOneWithOnePointFive { get; set; }
+        [DataMember] public bool MixOneByOneWithPassport { get; set; }
         [DataMember] public string PhotoFitMode { get; set; }
         [DataMember] public string MeasurementUnit { get; set; }
         [DataMember] public string DefaultPrinter { get; set; }
@@ -83,6 +89,10 @@ namespace RCPhotoStudio.Models
                 PaperName = PaperName,
                 Orientation = Orientation,
                 PlacementMode = PlacementMode,
+                RushIdPhotoArrangement = RushIdPhotoArrangement,
+                MixOneByOneWithTwoByTwo = MixOneByOneWithTwoByTwo,
+                MixOneByOneWithOnePointFive = MixOneByOneWithOnePointFive,
+                MixOneByOneWithPassport = MixOneByOneWithPassport,
                 PhotoFitMode = PhotoFitMode,
                 MeasurementUnit = MeasurementUnit,
                 DefaultPrinter = DefaultPrinter,

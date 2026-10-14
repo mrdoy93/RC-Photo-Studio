@@ -36,5 +36,4 @@ D:\My Files\My Personal Files\AI\Photo Studio\RCPhotoStudio\obj\Release\Views\Ti
 D:\My Files\My Personal Files\AI\Photo Studio\RCPhotoStudio\obj\Release\Views\TicketPrintingWindow.g.cs
 D:\My Files\My Personal Files\AI\Photo Studio\RCPhotoStudio\obj\Release\Views\TicketImageSetupWindow.baml
 D:\My Files\My Personal Files\AI\Photo Studio\RCPhotoStudio\obj\Release\Views\TicketImageSetupWindow.g.cs
-D:\My Files\My Personal Files\AI\Photo Studio\RCPhotoStudio\obj\Release\RCPhotoStudio.csproj.AssemblyReference.cache
-D:\My Files\My Personal Files\AI\Photo Studio\RCPhotoStudio\obj\Release\RCPhotoStudio.csproj.CoreCompileInputs.cache
+D:\My Files\My Personal Files\AI\Photo Studio\RCPhotoStudio\obj\Release\RCPhotoStudio.csprojResolveAssemblyReference.cache
