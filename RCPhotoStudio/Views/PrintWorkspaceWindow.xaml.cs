@@ -1134,6 +1134,14 @@ namespace RCPhotoStudio.Views
             return PrintLayoutWithConfirmation(package, layout, settings, package.PrintCutGuides, owner);
         }
 
+        public static bool PrintPreparedLayout(PhotoPackage package, PrintLayout layout, Window owner)
+        {
+            if (package == null || layout == null || layout.PageCount < 1) return false;
+            var settings = CreatePrinterSettings(package, package.DefaultPrinter);
+            return PrintLayoutWithConfirmation(package, layout, settings,
+                package.PrintCutGuides, owner);
+        }
+
         private static bool PrintLayoutWithConfirmation(PhotoPackage package, PrintLayout layout,
             PrinterSettings printerSettings, bool printCutGuides, Window owner)
         {

@@ -133,18 +133,14 @@
                             <Border Grid.Row="2" Padding="5" Margin="0,0,0,4" Background="{DynamicResource SurfaceAltBrush}"
                                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6">
                                 <Grid VerticalAlignment="Center">
-                                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="44"/></Grid.ColumnDefinitions>
                                     <CheckBox x:Name="TwoByTwoCheckBox" Content="2 × 2 inches" VerticalAlignment="Center"
                                               Checked="AutomaticRushSize_Changed" Unchecked="AutomaticRushSize_Changed"/>
                                     <TextBox x:Name="TwoByTwoQuantityBox" Grid.Column="1" Text="1" Height="24" Padding="4,1" FontSize="11"
                                              TextAlignment="Center" VerticalContentAlignment="Center"
                                              TextChanged="AutomaticRushQuantity_Changed" ToolTip="Quantity"/>
-                                    <ComboBox x:Name="TwoByTwoPhotoBox" Grid.Row="1" Grid.ColumnSpan="2" Height="24" MinHeight="24" FontSize="10" Margin="0,3,0,0"
-                                              ItemsSource="{Binding Photos}" DisplayMemberPath="Name"
-                                              SelectionChanged="AutomaticRushPhotoAssignment_Changed"
-                                              ToolTip="Picture used for every 2 × 2 copy" Visibility="Collapsed"/>
-                                    <CheckBox x:Name="TwoByTwoIncludeOneByOneCheckBox" Grid.Row="2" Grid.ColumnSpan="2"
+                                    <CheckBox x:Name="TwoByTwoIncludeOneByOneCheckBox" Grid.Row="1" Grid.ColumnSpan="2"
                                               Content="Add 1 × 1 to this package" FontSize="9" Margin="0,3,0,0"
                                               Checked="AutomaticRushOneByOneMix_Changed" Unchecked="AutomaticRushOneByOneMix_Changed"
                                               Visibility="Collapsed"/>
@@ -154,40 +150,26 @@
                             <Border Grid.Row="3" Padding="5" Margin="0,0,0,4" Background="{DynamicResource SurfaceAltBrush}"
                                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6">
                                 <Grid VerticalAlignment="Center">
-                                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="44"/></Grid.ColumnDefinitions>
                                     <CheckBox x:Name="OneByOneCheckBox" Content="1 × 1 inch" VerticalAlignment="Center"
                                               Checked="AutomaticRushSize_Changed" Unchecked="AutomaticRushSize_Changed"/>
                                     <TextBox x:Name="OneByOneQuantityBox" Grid.Column="1" Text="1" Height="24" Padding="4,1" FontSize="11"
                                              TextAlignment="Center" VerticalContentAlignment="Center"
                                              TextChanged="AutomaticRushQuantity_Changed" ToolTip="Quantity"/>
-                                    <Grid Grid.Row="1" Grid.ColumnSpan="2" Margin="0,3,0,0">
-                                        <ComboBox x:Name="OneByOnePhotoBox" Height="24" MinHeight="24" FontSize="10"
-                                                  ItemsSource="{Binding Photos}" DisplayMemberPath="Name"
-                                                  SelectionChanged="AutomaticRushPhotoAssignment_Changed"
-                                                  ToolTip="Picture used for every 1 × 1 copy" Visibility="Collapsed"/>
-                                        <TextBlock x:Name="OneByOnePhotoHint" Text="Uses each package row's picture"
-                                                   FontSize="9" VerticalAlignment="Center" TextWrapping="Wrap"
-                                                   Foreground="{DynamicResource MutedTextBrush}" Visibility="Collapsed"/>
-                                    </Grid>
                                 </Grid>
                             </Border>
 
                             <Border Grid.Row="4" Padding="5" Margin="0,0,0,4" Background="{DynamicResource SurfaceAltBrush}"
                                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6">
                                 <Grid VerticalAlignment="Center">
-                                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="44"/></Grid.ColumnDefinitions>
                                     <CheckBox x:Name="OnePointFiveCheckBox" Content="1.5 × 1.5 inches" VerticalAlignment="Center"
                                               Checked="AutomaticRushSize_Changed" Unchecked="AutomaticRushSize_Changed"/>
                                     <TextBox x:Name="OnePointFiveQuantityBox" Grid.Column="1" Text="1" Height="24" Padding="4,1" FontSize="11"
                                              TextAlignment="Center" VerticalContentAlignment="Center"
                                              TextChanged="AutomaticRushQuantity_Changed" ToolTip="Quantity"/>
-                                    <ComboBox x:Name="OnePointFivePhotoBox" Grid.Row="1" Grid.ColumnSpan="2" Height="24" MinHeight="24" FontSize="10" Margin="0,3,0,0"
-                                              ItemsSource="{Binding Photos}" DisplayMemberPath="Name"
-                                              SelectionChanged="AutomaticRushPhotoAssignment_Changed"
-                                              ToolTip="Picture used for every 1.5 × 1.5 copy" Visibility="Collapsed"/>
-                                    <CheckBox x:Name="OnePointFiveIncludeOneByOneCheckBox" Grid.Row="2" Grid.ColumnSpan="2"
+                                    <CheckBox x:Name="OnePointFiveIncludeOneByOneCheckBox" Grid.Row="1" Grid.ColumnSpan="2"
                                               Content="Add 1 × 1 to this package" FontSize="9" Margin="0,3,0,0"
                                               Checked="AutomaticRushOneByOneMix_Changed" Unchecked="AutomaticRushOneByOneMix_Changed"
                                               Visibility="Collapsed"/>
@@ -197,7 +179,7 @@
                             <Border Grid.Row="5" Padding="5" Margin="0,0,0,4" Background="{DynamicResource SurfaceAltBrush}"
                                     BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="6">
                                 <Grid VerticalAlignment="Center">
-                                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="44"/></Grid.ColumnDefinitions>
                                     <StackPanel VerticalAlignment="Center">
                                         <CheckBox x:Name="PassportCheckBox" Content="Passport size"
@@ -208,11 +190,7 @@
                                     <TextBox x:Name="PassportQuantityBox" Grid.Column="1" Text="1" Height="24" Padding="4,1" FontSize="11"
                                              TextAlignment="Center" VerticalContentAlignment="Center"
                                              TextChanged="AutomaticRushQuantity_Changed" ToolTip="Quantity"/>
-                                    <ComboBox x:Name="PassportPhotoBox" Grid.Row="1" Grid.ColumnSpan="2" Height="24" MinHeight="24" FontSize="10" Margin="0,3,0,0"
-                                              ItemsSource="{Binding Photos}" DisplayMemberPath="Name"
-                                              SelectionChanged="AutomaticRushPhotoAssignment_Changed"
-                                              ToolTip="Picture used for every passport-size copy" Visibility="Collapsed"/>
-                                    <CheckBox x:Name="PassportIncludeOneByOneCheckBox" Grid.Row="2" Grid.ColumnSpan="2"
+                                    <CheckBox x:Name="PassportIncludeOneByOneCheckBox" Grid.Row="1" Grid.ColumnSpan="2"
                                               Content="Add 1 × 1 to this package" FontSize="9" Margin="0,3,0,0"
                                               Checked="AutomaticRushOneByOneMix_Changed" Unchecked="AutomaticRushOneByOneMix_Changed"
                                               Visibility="Collapsed"/>
